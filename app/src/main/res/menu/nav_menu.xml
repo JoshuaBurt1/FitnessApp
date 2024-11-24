@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn = "navigation_view">
+
+    <group
+        android:checkableBehavior="single">
+
+        <item
+            android:title="Home"
+            android:icon="@drawable/ic_launcher_background"
+            android:id="@+id/nav_home"/>
+
+        <item
+            android:title="User Stats"
+            android:icon="@drawable/ic_launcher_background"
+            android:id="@+id/nav_game"/>
+
+        <item
+            android:title="All Statistics"
+            android:icon="@drawable/ic_launcher_background"
+            android:id="@+id/nav_high_score"/>
+
+    </group>
+
+</menu>
