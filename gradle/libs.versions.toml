@@ -16,6 +16,7 @@ firebaseFirestoreKtx = "25.1.1"
 firebaseFirestore = "25.1.1"
 loggingInterceptor = "4.9.3"
 retrofit = "2.9.0"
+firebaseCrashlyticsBuildtools = "3.0.2"
 
 
 [libraries]
@@ -41,6 +42,7 @@ play-services-games = { group = "com.google.android.gms", name = "play-services-
 firebase-common-ktx = { group = "com.google.firebase", name = "firebase-common-ktx", version.ref = "firebaseCommonKtx" }
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
+firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -9,9 +9,12 @@ class SplashScreen : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_splash)
 
+        // Show the splash screen for 3 seconds, then navigate to MainActivity
         Handler().postDelayed({
-            startActivity(Intent(this@SplashScreen, MainActivity::class.java))
+            // Start MainActivity after the splash screen
+            startActivity(Intent(this, MainActivity::class.java))
             finish()
         }, 3000)
     }

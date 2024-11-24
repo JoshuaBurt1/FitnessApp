@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.play.services.games)
     implementation(libs.firebase.common.ktx)
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

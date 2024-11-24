@@ -3,7 +3,6 @@
     </style>
 
     <style name="SplashScreen" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">@drawable/background_splashscreen</item>
         <item name="android:statusBarColor" >?attr/colorPrimary</item>
     </style>
     <style name="Theme.SplashScreen" parent="Base.Theme.SplashScreen" />

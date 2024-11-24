@@ -16,10 +16,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.material.navigation.NavigationView
 import com.google.common.reflect.TypeToken
 import com.google.firebase.FirebaseApp
@@ -37,7 +33,8 @@ import org.json.JSONObject
 
 /**
  * Home fragment
- */class Home : Fragment() {
+ */
+class Home : Fragment() {
     private lateinit var homeName: EditText
 
     override fun onCreateView(
@@ -52,8 +49,13 @@ import org.json.JSONObject
             FirebaseFirestore.setLoggingEnabled(true)
         }
 
+        // Corrected reference to navigation view and button
         val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
         val textViewName = navigationView.getHeaderView(0).findViewById<TextView>(R.id.name)
+
+        // Use 'view' to find the button within the fragment layout
+        val importUserProfileButton: Button = view.findViewById(R.id.importUserProfileButton)
+
         val currentName = textViewName.text
         if (!TextUtils.isEmpty(currentName)) {
             homeName.setText(currentName)
@@ -63,7 +65,10 @@ import org.json.JSONObject
         viewLifecycleOwner.lifecycleScope.launch {
             val accessToken = refreshAccessToken()
             if (accessToken != null) {
-                fetchFitbitData()
+                importUserProfileButton.setOnClickListener {
+                    // Call the function to fetch Fitbit data when the button is clicked
+                    fetchFitbitData()
+                }
             } else {
                 Log.e("FitbitAPI", "Failed to refresh access token")
                 Toast.makeText(requireContext(), "Error refreshing token", Toast.LENGTH_SHORT).show()
@@ -113,6 +118,8 @@ import org.json.JSONObject
     }
 
     private fun fetchFitbitData() {
+        disableNavigation()
+
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val profileJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/profile.json")
@@ -160,15 +167,18 @@ import org.json.JSONObject
                     .addOnSuccessListener { documentReference ->
                         Log.d(TAG, "Document added with ID: ${documentReference.id}")
                         Toast.makeText(requireContext(), "Data posted to Firebase!", Toast.LENGTH_SHORT).show()
+                        enableNavigation()
                     }
                     .addOnFailureListener { e ->
                         Log.w(TAG, "Error adding document", e)
                         Toast.makeText(requireContext(), "Error posting data", Toast.LENGTH_SHORT).show()
+                        enableNavigation()
                     }
 
             } catch (e: Exception) {
                 Log.e("FitbitAPI", "Error fetching data: ${e.message}")
                 Toast.makeText(requireContext(), "Error fetching data: ${e.message}", Toast.LENGTH_SHORT).show()
+                enableNavigation()
             }
         }
     }
@@ -237,5 +247,21 @@ import org.json.JSONObject
     private fun getRefreshToken(): String? {
         val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
         return sharedPreferences.getString("refresh_token", null)  // Returns null if no token is found
+    }
+
+    // Disables navigation: prevent crash when going to a different fragment during fetch
+    private fun disableNavigation() {
+        val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
+        navigationView.menu.findItem(R.id.nav_home)?.isEnabled = false
+        navigationView.menu.findItem(R.id.nav_game)?.isEnabled = false
+        navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = false
+    }
+
+    // Function to enable navigation items
+    private fun enableNavigation() {
+        val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
+        navigationView.menu.findItem(R.id.nav_home)?.isEnabled = true
+        navigationView.menu.findItem(R.id.nav_game)?.isEnabled = true
+        navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = true
     }
 }
