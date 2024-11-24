@@ -18,10 +18,8 @@
             android:id="@+id/nav_game"/>
 
         <item
-            android:title="All Statistics"
+            android:title="Compare"
             android:icon="@drawable/ic_launcher_background"
             android:id="@+id/nav_high_score"/>
-
     </group>
-
 </menu>

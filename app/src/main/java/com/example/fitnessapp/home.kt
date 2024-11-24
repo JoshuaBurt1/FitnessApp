@@ -116,7 +116,6 @@ class Home : Fragment() {
             }
         }
     }
-
     private fun fetchFitbitData() {
         disableNavigation()
 
@@ -161,17 +160,48 @@ class Home : Fragment() {
                     "heartRate" to heartRateJson
                 )
 
+                // Query Firestore to check if a document with the displayName already exists
                 val db = Firebase.firestore
-                db.collection("users")
-                    .add(userData)
-                    .addOnSuccessListener { documentReference ->
-                        Log.d(TAG, "Document added with ID: ${documentReference.id}")
-                        Toast.makeText(requireContext(), "Data posted to Firebase!", Toast.LENGTH_SHORT).show()
-                        enableNavigation()
+                val query = db.collection("users").whereEqualTo("displayName", userName)
+
+                query.get()
+                    .addOnSuccessListener { querySnapshot ->
+                        if (querySnapshot.isEmpty) {
+                            // No document found, create a new one
+                            Log.d("Firestore", "No existing user found with displayName: $userName. Creating new entry.")
+                            db.collection("users")
+                                .add(userData)
+                                .addOnSuccessListener { documentReference ->
+                                    Log.d(TAG, "Document added with ID: ${documentReference.id}")
+                                    Toast.makeText(requireContext(), "Data posted to Firebase!", Toast.LENGTH_SHORT).show()
+                                    enableNavigation()
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.w(TAG, "Error adding document", e)
+                                    Toast.makeText(requireContext(), "Error posting data", Toast.LENGTH_SHORT).show()
+                                    enableNavigation()
+                                }
+                        } else {
+                            // Document found with matching displayName, update the existing one
+                            val documentId = querySnapshot.documents.first().id
+                            Log.d("Firestore", "Existing user found with displayName: $userName. Updating document ID: $documentId.")
+                            db.collection("users").document(documentId)
+                                .set(userData)
+                                .addOnSuccessListener {
+                                    Log.d(TAG, "Document updated with ID: $documentId")
+                                    Toast.makeText(requireContext(), "Data updated in Firebase!", Toast.LENGTH_SHORT).show()
+                                    enableNavigation()
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.w(TAG, "Error updating document", e)
+                                    Toast.makeText(requireContext(), "Error updating data", Toast.LENGTH_SHORT).show()
+                                    enableNavigation()
+                                }
+                        }
                     }
                     .addOnFailureListener { e ->
-                        Log.w(TAG, "Error adding document", e)
-                        Toast.makeText(requireContext(), "Error posting data", Toast.LENGTH_SHORT).show()
+                        Log.e(TAG, "Error checking for existing user", e)
+                        Toast.makeText(requireContext(), "Error checking for existing user", Toast.LENGTH_SHORT).show()
                         enableNavigation()
                     }
 
