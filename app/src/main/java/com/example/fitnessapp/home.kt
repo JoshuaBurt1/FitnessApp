@@ -2,6 +2,7 @@ package com.example.fitnessapp
 
 import android.content.ContentValues.TAG
 import android.content.Context
+import android.graphics.BlurMaskFilter
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Base64
@@ -31,11 +32,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 
-/**
- * Home fragment
- */
 class Home : Fragment() {
+
     private lateinit var homeName: EditText
+    private lateinit var clientIdEditText: EditText
+    private lateinit var clientSecretEditText: EditText
+    private lateinit var refreshTokenEditText: EditText
+    private lateinit var importUserProfileButton: Button
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -43,53 +46,160 @@ class Home : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
 
-        // Initialize Firebase and set logging (ensure it's safe to access context)
+        // Initialize Firebase and logging
         activity?.let { activity ->
             FirebaseApp.initializeApp(activity)
             FirebaseFirestore.setLoggingEnabled(true)
         }
 
-        // Corrected reference to navigation view and button
-        val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
-        val textViewName = navigationView.getHeaderView(0).findViewById<TextView>(R.id.name)
+        // Find EditTexts for clientId, clientSecret, and refreshToken
+        clientIdEditText = view.findViewById(R.id.clientID)
+        clientSecretEditText = view.findViewById(R.id.clientSecret)
+        refreshTokenEditText = view.findViewById(R.id.refreshToken)
 
-        // Use 'view' to find the button within the fragment layout
-        val importUserProfileButton: Button = view.findViewById(R.id.importUserProfileButton)
+        // Initialize the button
+        importUserProfileButton = view.findViewById(R.id.importUserProfileButton)
 
-        val currentName = textViewName.text
-        if (!TextUtils.isEmpty(currentName)) {
-            homeName.setText(currentName)
-        }
+        // Load the stored values from SharedPreferences
+        loadStoredCredentials()
 
-        // Fetch the access token asynchronously using lifecycleScope tied to the view lifecycle
-        viewLifecycleOwner.lifecycleScope.launch {
-            val accessToken = refreshAccessToken()
-            if (accessToken != null) {
-                importUserProfileButton.setOnClickListener {
-                    // Call the function to fetch Fitbit data when the button is clicked
-                    fetchFitbitData()
+        importUserProfileButton.setOnClickListener {
+            // Get the values from the EditText fields
+            val clientId = clientIdEditText.text.toString()
+            val clientSecret = clientSecretEditText.text.toString()
+            val refreshToken = refreshTokenEditText.text.toString()
+
+            if (clientId.isNotEmpty() && clientSecret.isNotEmpty() && refreshToken.isNotEmpty()) {
+                // Save them to SharedPreferences
+                saveCredentialsToSharedPreferences(clientId, clientSecret, refreshToken)
+
+                // Start the process to fetch data
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val accessToken = refreshAccessToken(refreshToken)
+                    if (accessToken != null) {
+                        // User is logged in, fetch Fitbit data
+                        UserSession.isUserLoggedIn = true
+                        fetchFitbitData()
+                    } else {
+                        // Failed to refresh the token
+                        Log.e("FitbitAPI", "Failed to refresh access token")
+                        Toast.makeText(requireContext(), "Error refreshing token", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } else {
-                Log.e("FitbitAPI", "Failed to refresh access token")
-                Toast.makeText(requireContext(), "Error refreshing token", Toast.LENGTH_SHORT).show()
+                // Prompt user if any credentials are missing
+                Toast.makeText(requireContext(), "Please enter valid credentials", Toast.LENGTH_SHORT).show()
             }
         }
+
         return view
     }
 
-    private fun updateNameInNavigationView(newName: String) {
-        val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
-        val textViewName = navigationView.getHeaderView(0).findViewById<TextView>(R.id.name)
-        textViewName.text = newName
+    private fun saveCredentialsToSharedPreferences(clientId: String, clientSecret: String, refreshToken: String) {
+        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putString("client_id", clientId)
+        editor.putString("client_secret", clientSecret)
+        editor.putString("refresh_token", refreshToken)
+        editor.apply()
     }
 
-    private fun hideKeyboard(context: Context, view: View) {
-        val inputMethodManager = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+    private fun loadStoredCredentials() {
+        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
+        val storedClientId = sharedPreferences.getString("client_id", "")
+        val storedClientSecret = sharedPreferences.getString("client_secret", "")
+        val storedRefreshToken = sharedPreferences.getString("refresh_token", "")
+
+        // Check if any value is stored and set blur or hide
+        if (!storedClientId.isNullOrEmpty()) {
+            clientIdEditText.setText(storedClientId)
+            applyBlurEffect(clientIdEditText)
+        }
+        if (!storedClientSecret.isNullOrEmpty()) {
+            clientSecretEditText.setText(storedClientSecret)
+            applyBlurEffect(clientSecretEditText)
+        }
+        if (!storedRefreshToken.isNullOrEmpty()) {
+            refreshTokenEditText.setText(storedRefreshToken)
+            applyBlurEffect(refreshTokenEditText)
+        }
+    }
+
+    private suspend fun refreshAccessToken(refreshToken: String): String? {
+        val clientId = getStoredClientId()
+        val clientSecret = getStoredClientSecret()
+
+        if (clientId == null || clientSecret == null || refreshToken.isNullOrEmpty()) {
+            Log.e("FitbitAPI", "Client ID, Client Secret or Refresh Token is missing.")
+            return null
+        }
+
+        val url = "https://api.fitbit.com/oauth2/token"
+        val formBody = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
+            .build()
+
+        val credentials = "$clientId:$clientSecret"
+        val basicAuth = "Basic " + Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(formBody)
+            .header("Authorization", basicAuth)
+            .build()
+
+        val client = OkHttpClient()
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val responseBody = response.body?.string()
+                    val jsonResponse = JSONObject(responseBody)
+                    val newAccessToken = jsonResponse.optString("access_token")
+                    val newRefreshToken = jsonResponse.optString("refresh_token")
+
+                    if (newAccessToken.isNullOrEmpty()) {
+                        Log.e("FitbitAPI", "Access token is empty or null.")
+                        return@withContext null
+                    }
+
+                    // Save the new tokens in SharedPreferences
+                    saveCredentialsToSharedPreferences(clientId, clientSecret, newRefreshToken)
+                    return@withContext newAccessToken
+                } else {
+                    Log.e("FitbitAPI", "Failed to refresh token: ${response.code}")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("FitbitAPI", "Error refreshing token: ${e.message}")
+                return@withContext null
+            }
+        }
+    }
+
+    private fun getStoredClientId(): String? {
+        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
+        return sharedPreferences.getString("client_id", null)
+    }
+
+    private fun getStoredClientSecret(): String? {
+        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
+        return sharedPreferences.getString("client_secret", null)
+    }
+
+    private fun getStoredRefreshToken(): String? {
+        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
+        return sharedPreferences.getString("refresh_token", null)
     }
 
     private suspend fun fetchFitbitApiData(url: String): String {
-        val accessToken = refreshAccessToken()
+        val refreshToken = getStoredRefreshToken()
+        if (refreshToken.isNullOrEmpty()) {
+            throw Exception("Error: No valid refresh token found")
+        }
+
+        val accessToken = refreshAccessToken(refreshToken)
         if (accessToken == null) {
             throw Exception("Error: No valid access token found")
         }
@@ -116,6 +226,8 @@ class Home : Fragment() {
             }
         }
     }
+
+
     private fun fetchFitbitData() {
         disableNavigation()
 
@@ -213,73 +325,6 @@ class Home : Fragment() {
         }
     }
 
-    suspend fun refreshAccessToken(): String? {
-        val refreshToken = getRefreshToken()
-        if (refreshToken == null) {
-            Log.e("FitbitAPI", "No refresh token found")
-            return null
-        }
-
-        val clientId = "23PS6K"
-        val clientSecret = "6439f3b4bacfc6bfa202f56920a31f84"
-        val url = "https://api.fitbit.com/oauth2/token"
-
-        val formBody = FormBody.Builder()
-            .add("grant_type", "refresh_token")
-            .add("refresh_token", refreshToken)
-            .build()
-
-        val credentials = "$clientId:$clientSecret"
-        val basicAuth = "Basic " + Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
-
-        val request = Request.Builder()
-            .url(url)
-            .post(formBody)
-            .header("Authorization", basicAuth)
-            .build()
-
-        val client = OkHttpClient()
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val responseBody = response.body?.string()
-                    val jsonResponse = JSONObject(responseBody)
-                    val newAccessToken = jsonResponse.optString("access_token")
-                    val newRefreshToken = jsonResponse.optString("refresh_token")
-
-                    if (newAccessToken.isNullOrEmpty()) {
-                        Log.e("FitbitAPI", "Access token is empty or null.")
-                        return@withContext null
-                    }
-
-                    saveRefreshToken(newRefreshToken)
-                    return@withContext newAccessToken
-                } else {
-                    Log.e("FitbitAPI", "Failed to refresh token: ${response.code}")
-                    return@withContext null
-                }
-            } catch (e: Exception) {
-                Log.e("FitbitAPI", "Error refreshing token: ${e.message}")
-                return@withContext null
-            }
-        }
-    }
-    // Save the refresh token to SharedPreferences
-    private fun saveRefreshToken(refreshToken: String) {
-        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putString("refresh_token", refreshToken)
-        editor.apply()
-    }
-
-    // Retrieve the refresh token from SharedPreferences
-    private fun getRefreshToken(): String? {
-        val sharedPreferences = requireContext().getSharedPreferences("fitbit_preferences", Context.MODE_PRIVATE)
-        return sharedPreferences.getString("refresh_token", null)  // Returns null if no token is found
-    }
-
-    // Disables navigation: prevent crash when going to a different fragment during fetch
     private fun disableNavigation() {
         val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
         navigationView.menu.findItem(R.id.nav_home)?.isEnabled = false
@@ -287,11 +332,29 @@ class Home : Fragment() {
         navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = false
     }
 
-    // Function to enable navigation items
     private fun enableNavigation() {
         val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
         navigationView.menu.findItem(R.id.nav_home)?.isEnabled = true
         navigationView.menu.findItem(R.id.nav_game)?.isEnabled = true
         navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = true
+    }
+    private fun applyBlurEffect(editText: EditText) {
+        // If the EditText has text from SharedPreferences, apply blur initially
+        if (editText.text.isNotEmpty()) {
+            editText.paint.maskFilter = BlurMaskFilter(10f, BlurMaskFilter.Blur.NORMAL)
+        }
+
+        // Remove the blur effect when the user focuses on or interacts with the field
+        editText.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                // Remove the blur effect if the field is focused (i.e., the user is editing)
+                editText.paint.maskFilter = null
+            } else {
+                // Apply blur effect if the field loses focus and still has content
+                if (editText.text.isNotEmpty()) {
+                    editText.paint.maskFilter = BlurMaskFilter(10f, BlurMaskFilter.Blur.NORMAL)
+                }
+            }
+        }
     }
 }

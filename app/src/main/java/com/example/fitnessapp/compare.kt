@@ -18,6 +18,7 @@ import com.google.firebase.crashlytics.buildtools.reloc.com.google.common.reflec
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import android.graphics.Color
+import android.widget.Toast
 import kotlin.random.Random
 
 
@@ -47,6 +48,11 @@ class Highscores : Fragment() {
     }
 
     private fun fetchStepsData() {
+        if (!UserSession.isUserLoggedIn) {
+            // If the user is not logged in, show a message and do not proceed with fetching data
+            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
         // Fetch data from Firestore
         firestore.collection("users")
             .get()

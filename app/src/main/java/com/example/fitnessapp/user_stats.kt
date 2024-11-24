@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
@@ -39,6 +40,12 @@ class Game : Fragment() {
     }
 
     private fun fetchStepsData() {
+        // Check if the user is logged in
+        if (!UserSession.isUserLoggedIn) {
+            // If the user is not logged in, show a message and do not proceed with fetching data
+            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
         // Fetch data from Firestore
         firestore.collection("users")
             .get()

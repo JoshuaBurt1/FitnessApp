@@ -25,7 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Enter Credentials"
+        android:text="Enter Basic User Credentials"
         android:textSize="18sp"
         android:textStyle="italic"
         app:layout_constraintStart_toStartOf="parent"
@@ -65,6 +65,65 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/passwordInput" />
 
+    <TextView
+        android:id="@+id/fitbitUserLogin"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Enter Fitbit Credentials"
+        android:textSize="18sp"
+        android:textStyle="italic"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/submitUserButton"
+        android:textAlignment="center" />
+    <TextView
+        android:id="@+id/helpfulMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="https://dev.fitbit.com/build/reference/web-api/troubleshooting-guide/oauth2-tutorial/"
+        android:textSize="18sp"
+        android:textStyle="italic"
+        android:autoLink="web"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/fitbitUserLogin"
+        android:textAlignment="center" />
+
+    <EditText
+        android:id="@+id/clientID"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:hint="Client ID"
+        android:inputType="text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/helpfulMessage" />
+
+    <EditText
+        android:id="@+id/clientSecret"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Client Secret"
+        android:inputType="text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/clientID" />
+
+    <EditText
+        android:id="@+id/refreshToken"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Refresh Token"
+        android:inputType="text"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/clientSecret" />
+
     <!-- Import User Profile Button -->
     <Button
         android:id="@+id/importUserProfileButton"
@@ -72,8 +131,11 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Login with Fitbit Account"
+        android:enabled="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/submitUserButton" />
+        app:layout_constraintTop_toBottomOf="@+id/refreshToken" />
+
+    <!-- New EditText Fields Below submitUserButton -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>
