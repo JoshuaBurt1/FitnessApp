@@ -1,7 +1,5 @@
 # Fitness App
 
-- A work in progress.
-
 1. Download the code
 2. Open in Android Studio
 3. Build and press play (green triangle). Alternatively, download to your phone through USB.
@@ -15,3 +13,5 @@ Logcat Example:
 2024-11-25 08:45:00.433 18685-18745 Firestore    
 com.example.fitnessapp               
 W  (25.1.1) [OnlineStateTracker]: Could not reach Cloud Firestore backend. Backend didn't respond within 10 seconds. This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+
+- A work in progress.
