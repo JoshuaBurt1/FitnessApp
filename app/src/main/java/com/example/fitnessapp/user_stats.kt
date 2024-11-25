@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.example.fitnessapp.UserSession.currentUserName
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -19,6 +20,7 @@ import com.google.gson.Gson
 class Game : Fragment() {
     private lateinit var lineChart: LineChart  // Declare the lateinit variable
     private lateinit var firestore: FirebaseFirestore  // Declare Firestore instance
+    private var userName: String = "Unknown User"  // Class level variable to hold username
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -38,7 +40,6 @@ class Game : Fragment() {
 
         return view
     }
-
     private fun fetchStepsData() {
         // Check if the user is logged in
         if (!UserSession.isUserLoggedIn) {
@@ -46,35 +47,52 @@ class Game : Fragment() {
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
-        // Fetch data from Firestore
+
+        // Get the currently logged-in user's username (assumed to be stored in UserSession)
+        val currentUserName = UserSession.currentUserName // Replace with the actual session variable
+
+        if (currentUserName.isNullOrEmpty()) {
+            // If no user name is available, show an error and return
+            Toast.makeText(requireContext(), "No logged-in user found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Fetch data from Firestore for the logged-in user
         firestore.collection("users")
+            .whereEqualTo("displayName", currentUserName) // Use the current logged-in user's display name
             .get()
             .addOnSuccessListener { querySnapshot ->
-                for (document in querySnapshot) {
-                    // Assuming the document fields are stored as key-value pairs
-                    val userData = document.data
-                    Log.d("FirestoreData", "User Data: $userData")
+                if (querySnapshot.isEmpty) {
+                    // No user found in Firestore (shouldn't happen if the user is logged in)
+                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
 
-                    // Check if "steps" data exists in the document
-                    val stepsJson = userData["steps"] as? String
+                // We are assuming there's only one document for the current user
+                val document = querySnapshot.documents.first()
+                val userData = document.data
+                Log.d("FirestoreData", "User Data: $userData")
 
-                    // If stepsJson is not null, proceed to parse it
-                    if (stepsJson != null) {
-                        // Parse the JSON string into a usable list
-                        val stepsList = parseStepsJson(stepsJson)
+                // Check if "steps" data exists in the document
+                val stepsJson = userData?.get("steps") as? String
 
-                        // Plot the data
-                        plotChart(stepsList)
-                    } else {
-                        Log.e("FirestoreError", "Steps data is missing or null")
-                    }
+                // If stepsJson is not null, proceed to parse it
+                if (stepsJson != null) {
+                    // Parse the JSON string into a usable list
+                    val stepsList = parseStepsJson(stepsJson)
+                    val userName = userData["displayName"] as? String ?: "Unknown User"
+
+                    // Plot the data with the username included as a label
+                    plotChart(stepsList, userName)
+                } else {
+                    Log.e("FirestoreError", "Steps data is missing or null")
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e("FirestoreError", "Error getting documents: ", exception)
+                Log.e("FirestoreError", "Error getting document: ", exception)
+                Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
             }
     }
-
 
     private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
         val gson = Gson()
@@ -96,13 +114,15 @@ class Game : Fragment() {
         }
     }
 
-    private fun plotChart(data: List<Pair<String, Int>>) {
+    private fun plotChart(data: List<Pair<String, Int>>, userName: String) {
         // Convert the time-value pairs to Entry objects for plotting
         val entries = data.mapIndexed { index, pair ->
             Entry(index.toFloat(), pair.second.toFloat())  // Convert index to float for X axis
         }
 
-        val dataSet = LineDataSet(entries, "Steps")
+        // Use the userName here to create a label for the data set
+        val dataSet = LineDataSet(entries, currentUserName)  // Set the username as the label for the line
+
         val lineData = LineData(dataSet)
         lineChart.data = lineData
 

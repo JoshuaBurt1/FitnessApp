@@ -12,13 +12,10 @@ data class User(
     val weight: Double,
     val memberSince: String,
     val averageDailySteps: Double,
-
-    //Planned on Charting these values, but no native graphing feature in android?
-
+    //arrays
     val steps: List<Pair<String, Int>>,  // List of tuples [dateTime, steps]
-    //val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
-    //val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
-    //val cardioScore: List<Pair<String, String>>, // List of tuples [dateTime, vo2Max]
-    //val restingHR: List<Pair<String, Int>>, //List of tuples [dateTime, restingHeartRate]
-    //val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
+    val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
+    val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
+    val cardioScore: List<Pair<String, String>>, // List of tuples [dateTime, vo2Max]
+    val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
 )
