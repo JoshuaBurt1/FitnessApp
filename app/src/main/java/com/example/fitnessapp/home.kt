@@ -46,7 +46,7 @@ class Home : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
 
-        // Initialize Firebase and logging
+        // Initialize Firebase
         activity?.let { activity ->
             FirebaseApp.initializeApp(activity)
             FirebaseFirestore.setLoggingEnabled(true)
@@ -55,7 +55,6 @@ class Home : Fragment() {
         // *** Regular User login process: ***
         usernameInputEditText = view.findViewById(R.id.usernameInput)
         passwordEditText = view.findViewById(R.id.passwordInput)
-        // Initialize the button
         regularUserLogin = view.findViewById(R.id.regularUserLogin)
         regularUserLogin.setOnClickListener {
             if (validateUserForm()) {
@@ -67,18 +66,14 @@ class Home : Fragment() {
                     "encodedId" to passwordRegular
                 )
 
-                // Query Firestore to check if a document with the displayName already exists
+                // Check if a document with userNameRegular exists *** Ideally using user name and unique password ***
                 val db = Firebase.firestore
                 val query = db.collection("users").whereEqualTo("displayName", userNameRegular)
 
                 query.get()
                     .addOnSuccessListener { querySnapshot ->
                         if (querySnapshot.isEmpty) {
-                            // No document found, create a new one
-                            Log.d(
-                                "Firestore",
-                                "No existing user found with displayName: $userNameRegular. Creating new entry."
-                            )
+                            Log.d("Firestore", "No existing user found with displayName: $userNameRegular. Creating new entry.")
                             UserSession.currentUserName = userNameRegular
 
                             db.collection("users")
@@ -94,11 +89,9 @@ class Home : Fragment() {
                                     enableNavigation()
                                 }
                         } else {
-                            // Document found with matching displayName, update the existing one
+                            // match found, update
                             val documentId = querySnapshot.documents.first().id
-                            Log.d(
-                                "Firestore",
-                                "Existing user found with displayName: $userNameRegular. Updating document ID: $documentId."
+                            Log.d("Firestore", "Existing user found with displayName: $userNameRegular. Updating document ID: $documentId."
                             )
                             UserSession.currentUserName = userNameRegular
                         }
@@ -120,7 +113,6 @@ class Home : Fragment() {
         clientIdEditText = view.findViewById(R.id.clientID)
         clientSecretEditText = view.findViewById(R.id.clientSecret)
         refreshTokenEditText = view.findViewById(R.id.refreshToken)
-        // Initialize the button
         fitbitUserLogin = view.findViewById(R.id.fitbitUserLogin)
         // Load the stored values from SharedPreferences
         loadStoredCredentials()
@@ -135,21 +127,18 @@ class Home : Fragment() {
                 // Save them to SharedPreferences
                 saveCredentialsToSharedPreferences(clientId, clientSecret, refreshToken)
 
-                // Start the process to fetch datais
+                // Start the process to fetch datails
                 viewLifecycleOwner.lifecycleScope.launch {
                     val accessToken = refreshAccessToken(refreshToken)
                     if (accessToken != null) {
-                        // User is logged in, fetch Fitbit data
                         UserSession.isUserLoggedIn = true
                         fetchFitbitData()
                     } else {
-                        // Failed to refresh the token
                         Log.e("FitbitAPI", "Failed to refresh access token")
                         Toast.makeText(requireContext(), "Error refreshing token", Toast.LENGTH_SHORT).show()
                     }
                 }
             } else {
-                // Prompt user if any credentials are missing
                 Toast.makeText(requireContext(), "Please enter valid credentials", Toast.LENGTH_SHORT).show()
             }
             Toast.makeText(requireContext(), "Loading data...", Toast.LENGTH_SHORT).show()
@@ -173,18 +162,16 @@ class Home : Fragment() {
         val storedClientSecret = sharedPreferences.getString("client_secret", "")
         val storedRefreshToken = sharedPreferences.getString("refresh_token", "")
 
-        // Check if any value is stored and set input type as textPassword or plain text
         if (!storedClientId.isNullOrEmpty()) {
-            clientIdEditText.setText(storedClientId)  // Set stored value
-            // Only apply password behavior when the user interacts with the field
+            clientIdEditText.setText(storedClientId)
             setPasswordBehavior(clientIdEditText)
         }
         if (!storedClientSecret.isNullOrEmpty()) {
-            clientSecretEditText.setText(storedClientSecret)  // Set stored value
+            clientSecretEditText.setText(storedClientSecret)
             setPasswordBehavior(clientSecretEditText)
         }
         if (!storedRefreshToken.isNullOrEmpty()) {
-            refreshTokenEditText.setText(storedRefreshToken)  // Set stored value
+            refreshTokenEditText.setText(storedRefreshToken)
             setPasswordBehavior(refreshTokenEditText)
         }
     }
@@ -347,7 +334,6 @@ class Home : Fragment() {
                 query.get()
                     .addOnSuccessListener { querySnapshot ->
                         if (querySnapshot.isEmpty) {
-                            // No document found, create a new one
                             Log.d("Firestore", "No existing user found with displayName: $fitbitUserName. Creating new entry.")
                             UserSession.currentUserName = fitbitUserName
                             db.collection("users")
@@ -411,25 +397,21 @@ class Home : Fragment() {
         navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = true
     }
     private fun setPasswordBehavior(editText: EditText) {
-        // Apply password behavior (hide text)
         editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        editText.setSelection(editText.text.length)  // Move cursor to end of the text
+        editText.setSelection(editText.text.length)
 
-        // Optionally, show the password when focused (or if toggled by user action)
         editText.setOnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
-                // Allow text to be visible if focused (or leave it as password)
                 editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             }
         }
     }
 
-    // Validate user form fields (username, password)
+    // Validate login
     private fun validateUserForm(): Boolean {
         val username = usernameInputEditText.text.toString()
         val password = passwordEditText.text.toString()
 
-        // Check if both fields are not empty
         if (username.isEmpty()) {
             Toast.makeText(requireContext(), "Enter a username", Toast.LENGTH_SHORT).show()
             return false

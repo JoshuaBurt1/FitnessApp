@@ -21,9 +21,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 
 class Game : Fragment() {
-    private lateinit var lineChart: LineChart  // Declare the lateinit variable
-    private lateinit var firestore: FirebaseFirestore  // Declare Firestore instance
-    private var userName: String = "Unknown User"  // Class level variable to hold username
+    private lateinit var lineChart: LineChart
+    private lateinit var firestore: FirebaseFirestore
 
     private lateinit var ageEditText: EditText
     private lateinit var heightEditText: EditText
@@ -36,13 +35,12 @@ class Game : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_game, container, false)
-
+        // Initialize Firestore
         activity?.let { activity ->
             FirebaseApp.initializeApp(activity)
-            firestore = FirebaseFirestore.getInstance()  // Initialize Firestore
+            firestore = FirebaseFirestore.getInstance()
         }
 
-        // Initialize lineChart using findViewById
         lineChart = view.findViewById(R.id.lineChart)
 
         lineChart = view.findViewById(R.id.lineChart)
@@ -52,7 +50,6 @@ class Game : Fragment() {
         averageDailyStepsEditText = view.findViewById(R.id.averageDailyStepsEditText)
         submitChangesButton = view.findViewById(R.id.submitChangesButton)
 
-        // Set up the submit button listener
         submitChangesButton.setOnClickListener {
             submitChanges()
         }
@@ -62,58 +59,51 @@ class Game : Fragment() {
         return view
     }
 
+    //only fetch data if user is logged in
     private fun fetchStepsData() {
-        // Check if the user is logged in
         if (!UserSession.isUserLoggedIn) {
-            // If the user is not logged in, show a message and do not proceed with fetching data
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // Get the currently logged-in user's username (assumed to be stored in UserSession)
         val currentUserName = UserSession.currentUserName
 
         if (currentUserName.isNullOrEmpty()) {
-            // If no user name is available, show an error and return
             Toast.makeText(requireContext(), "No logged-in user found", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Fetch data from Firestore for the logged-in user
+        // Fetch data from Firestore
         firestore.collection("users")
-            .whereEqualTo("displayName", currentUserName) // Use the current logged-in user's display name
+            .whereEqualTo("displayName", currentUserName)
             .get()
             .addOnSuccessListener { querySnapshot ->
                 if (querySnapshot.isEmpty) {
-                    // No user found in Firestore (shouldn't happen if the user is logged in)
                     Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
 
-                // We are assuming there's only one document for the current user
+                // *** Get the first document (ideally this is a UNIQUE document) ***
                 val document = querySnapshot.documents.first()
                 val userData = document.data
                 Log.d("FirestoreData", "User Data: $userData")
 
-                // Parse the data from Profile:
+                // Parse user data
                 val age = userData?.get("age") as? Double ?: 0.0
                 val height = userData?.get("height") as? Double ?: 0.0
                 val weight = userData?.get("weight") as? Double ?: 0.0
                 val averageDailySteps = userData?.get("averageDailySteps") as? Double ?: 0.0
 
-                // Populate the TableLayout with this data
+                // Populate table
                 populateUserDataTable(age, height, weight, averageDailySteps)
 
-                // Check if "steps" data exists in the document
                 val stepsJson = userData?.get("steps") as? String
 
-                // If stepsJson is not null, proceed to parse it
                 if (stepsJson != null) {
-                    // Parse the JSON string into a usable list
+                    // Parse the JSON into a list
                     val stepsList = parseStepsJson(stepsJson)
                     val userName = userData["displayName"] as? String ?: "Unknown User"
 
-                    // Plot the data with the username included as a label
+                    // Plot the data
                     plotChart(stepsList, userName)
                 } else {
                     Log.e("FirestoreError", "Steps data is missing or null")
@@ -126,7 +116,7 @@ class Game : Fragment() {
     }
 
     private fun populateUserDataTable(age: Double, height: Double, weight: Double, averageDailySteps: Double) {
-        // Access the TableLayout and TextViews to populate them
+        // Populate table layout
         val ageTextView = view?.findViewById<TextView>(R.id.ageValueTextView)
         val heightTextView = view?.findViewById<TextView>(R.id.heightValueTextView)
         val weightTextView = view?.findViewById<TextView>(R.id.weightValueTextView)
@@ -134,11 +124,11 @@ class Game : Fragment() {
 
         // Set the user data to the TextViews
         ageTextView?.text = "${age}"
-        heightTextView?.text = "${height} cm"  // Assuming height is in cm
-        weightTextView?.text = "${weight} kg"  // Assuming weight is in kg
+        heightTextView?.text = "${height} cm"
+        weightTextView?.text = "${weight} kg"
         averageDailyStepsTextView?.text = "${averageDailySteps} steps"
 
-        // Show the TableLayout if it's initially hidden
+        // Show the TableLayout
         val userDataTable = view?.findViewById<TableLayout>(R.id.userDataTable)
         userDataTable?.visibility = View.VISIBLE
     }
@@ -153,11 +143,11 @@ class Game : Fragment() {
         // Extract the 'activities-tracker-steps' array from the map
         val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>>
 
-        // Check if stepsArray is null or empty
+        // Check if stepsArray is null
         if (stepsArray != null) {
             return stepsArray.map {
-                val date = it["dateTime"] as? String ?: "Unknown Date"  // Safe cast to String
-                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0  // Safe cast to Int
+                val date = it["dateTime"] as? String ?: "Unknown Date"
+                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
                 Pair(date, steps)
             }
         } else {
@@ -191,7 +181,7 @@ class Game : Fragment() {
         val weightText = weightEditText.text.toString().trim()
         val averageDailyStepsText = averageDailyStepsEditText.text.toString().trim()
 
-        // Convert valid values to double or leave as null if blank
+        // Ensure values are double
         val age = if (ageText.isNotEmpty()) ageText.toDoubleOrNull() else null
         val height = if (heightText.isNotEmpty()) heightText.toDoubleOrNull() else null
         val weight = if (weightText.isNotEmpty()) weightText.toDoubleOrNull() else null
@@ -202,24 +192,20 @@ class Game : Fragment() {
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // Get the currently logged-in user's username
         val currentUserName = UserSession.currentUserName
         if (currentUserName.isNullOrEmpty()) {
             Toast.makeText(requireContext(), "No logged-in user found", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Prepare the updates map
         val updates = mutableMapOf<String, Any>()
-
-        // Only update Firestore with non-null values
+        // Keep the current values if only some are updated
         age?.let { updates["age"] = it }
         height?.let { updates["height"] = it }
         weight?.let { updates["weight"] = it }
         averageDailySteps?.let { updates["averageDailySteps"] = it }
 
-        // If there are no updates, don't proceed
+        // Do not update if no changes
         if (updates.isEmpty()) {
             Toast.makeText(requireContext(), "No changes to submit", Toast.LENGTH_SHORT).show()
             return
@@ -234,8 +220,7 @@ class Game : Fragment() {
                     Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
-
-                // Update the first document found
+                // *** Update the first document (ideally this is a UNIQUE document) ***
                 val document = querySnapshot.documents.first()
                 document.reference.update(updates)
                     .addOnSuccessListener {
@@ -246,23 +231,21 @@ class Game : Fragment() {
                             view?.findViewById<TextView>(R.id.ageValueTextView)?.text = "$age"
                         }
                         if (height != null) {
-                            view?.findViewById<TextView>(R.id.heightValueTextView)?.text = "$height cm"  // Assuming height is in cm
+                            view?.findViewById<TextView>(R.id.heightValueTextView)?.text = "$height cm"
                         }
                         if (weight != null) {
-                            view?.findViewById<TextView>(R.id.weightValueTextView)?.text = "$weight kg"  // Assuming weight is in kg
+                            view?.findViewById<TextView>(R.id.weightValueTextView)?.text = "$weight kg"
                         }
                         if (averageDailySteps != null) {
                             view?.findViewById<TextView>(R.id.averageDailyStepsValueTextView)?.text = "$averageDailySteps steps"
                         }
                     }
-                    .addOnFailureListener { exception ->
+                    .addOnFailureListener {
                         Toast.makeText(requireContext(), "Failed to submit changes", Toast.LENGTH_SHORT).show()
-                        Log.e("FirestoreError", "Error updating document", exception)
                     }
             }
-            .addOnFailureListener { exception ->
+            .addOnFailureListener {
                 Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
-                Log.e("FirestoreError", "Error getting document: ", exception)
             }
     }
 }
