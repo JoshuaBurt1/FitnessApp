@@ -1,5 +1,7 @@
 # Fitness App
 
+- A work in progress.
+
 1. Download the code
 2. Open in Android Studio
 3. If you have a Fitbit account, you can enter your details. Alternatively you can enter as a new user.
