@@ -8,6 +8,8 @@
     tools:context=".Home"
     tools:ignore="MissingClass">
 
+    <!-- Regular User Login -->
+
     <TextView
         android:id="@+id/userSectionTitle"
         android:layout_width="wrap_content"
@@ -65,6 +67,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/passwordInput" />
 
+    <!-- Fitbit User Login -->
     <TextView
         android:id="@+id/fitbitUserSectionTitle"
         android:layout_width="wrap_content"
@@ -136,7 +139,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/clientSecret" />
 
-    <!-- Import User Profile Button -->
     <Button
         android:id="@+id/fitbitUserLogin"
         android:layout_width="0dp"
@@ -147,7 +149,5 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/refreshToken" />
-
-    <!-- New EditText Fields Below submitUserButton -->
 
 </androidx.constraintlayout.widget.ConstraintLayout>

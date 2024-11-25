@@ -10,16 +10,11 @@ import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
 
-/**
- * Navigation menu
- */
+//starts the main activity, starts the navigation bar view
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navigationView: NavigationView
 
-    /**
-     * Create the menu
-     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //app must always use light mode
@@ -52,9 +47,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
 
-    /**
-     * Menu logic: on selection go to home, game, or highscores fragment
-     */
+    //changes the fragments
     override fun onNavigationItemSelected(menuItem: MenuItem): Boolean {
         when (menuItem.itemId) {
             R.id.nav_home -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, Home()).commit()

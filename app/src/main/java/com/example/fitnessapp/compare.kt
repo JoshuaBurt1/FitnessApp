@@ -19,10 +19,10 @@ import android.graphics.Color
 import android.widget.Toast
 import kotlin.random.Random
 
-
+// Shows a comparison of all users daily step counts in the firestore cloud
 class Highscores : Fragment() {
-    private lateinit var lineChart: LineChart  // Declare the lateinit variable
-    private lateinit var firestore: FirebaseFirestore  // Declare Firestore instance
+    private lateinit var lineChart: LineChart
+    private lateinit var firestore: FirebaseFirestore
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -31,23 +31,22 @@ class Highscores : Fragment() {
 
         val view = inflater.inflate(R.layout.fragment_highscores, container, false)
 
+        //Initialize firestore
         activity?.let { activity ->
             FirebaseApp.initializeApp(activity)
-            firestore = FirebaseFirestore.getInstance()  // Initialize Firestore
+            firestore = FirebaseFirestore.getInstance()
         }
 
-        // Initialize lineChart using findViewById
         lineChart = view.findViewById(R.id.lineChartAllUsers)
 
-        // Fetch steps data for all users
         fetchStepsData()
 
         return view
     }
 
+    // Fetch the steps data from firestore, then plot all the users data on the chart
     private fun fetchStepsData() {
         if (!UserSession.isUserLoggedIn) {
-            // If the user is not logged in, show a message and do not proceed with fetching data
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
@@ -55,22 +54,17 @@ class Highscores : Fragment() {
         firestore.collection("users")
             .get()
             .addOnSuccessListener { querySnapshot ->
-                val allEntries = mutableListOf<LineDataSet>() // This will hold multiple LineDataSet objects
+                val allEntries = mutableListOf<LineDataSet>()
 
                 for (document in querySnapshot) {
-                    // Assuming the document fields are stored as key-value pairs
                     val userData = document.data
                     Log.d("FirestoreData", "User Data: $userData")
 
-                    // Check if "steps" data exists in the document
                     val stepsJson = userData["steps"] as? String
 
-                    // If stepsJson is not null, proceed to parse it
                     if (stepsJson != null) {
-                        // Parse the JSON string into a usable list
                         val stepsList = parseStepsJson(stepsJson)
 
-                        // Create a data set for this user and add it to the list
                         val userName = userData["displayName"] as? String ?: "Unknown User"
                         val dataSet = createUserLineDataSet(userName, stepsList)
                         allEntries.add(dataSet)
@@ -78,8 +72,7 @@ class Highscores : Fragment() {
                         Log.e("FirestoreError", "Steps data is missing or null")
                     }
                 }
-
-                // Plot all the user data sets on the chart
+                // Plot the chart
                 plotChart(allEntries)
             }
             .addOnFailureListener { exception ->
@@ -87,18 +80,17 @@ class Highscores : Fragment() {
             }
     }
 
+    // Parses the JSON from Fitbit using Gson() into a List<Map<String, Any>> type which can be plotted
     private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
         val gson = Gson()
         val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
 
-        // Extract the 'activities-tracker-steps' array from the map
         val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>>
 
-        // Check if stepsArray is null or empty
         if (stepsArray != null) {
             return stepsArray.map {
-                val date = it["dateTime"] as? String ?: "Unknown Date"  // Safe cast to String
-                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0  // Safe cast to Int
+                val date = it["dateTime"] as? String ?: "Unknown Date"
+                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
                 Pair(date, steps)
             }
         } else {
@@ -107,40 +99,36 @@ class Highscores : Fragment() {
         }
     }
 
+    //Create the line chart
     private fun createUserLineDataSet(userName: String, stepsList: List<Pair<String, Int>>): LineDataSet {
-        // Convert the time-value pairs to Entry objects for plotting
         val entries = stepsList.mapIndexed { index, pair ->
-            Entry(index.toFloat(), pair.second.toFloat())  // Convert index to float for X axis
+            Entry(index.toFloat(), pair.second.toFloat())
         }
-
-        // Create a LineDataSet for this user
         val dataSet = LineDataSet(entries, userName)
-        dataSet.color = randomColor()  // Correctly call the randomColor function
-        dataSet.valueTextColor = Color.BLACK  // Value text color
-        dataSet.valueTextSize = 12f  // Text size for the values
+        dataSet.color = randomColor()
+        dataSet.valueTextColor = Color.BLACK
+        dataSet.valueTextSize = 12f
         return dataSet
     }
 
+    //Plot the chart
     private fun plotChart(allEntries: List<LineDataSet>) {
-        // Create a LineData object with all user data sets
         val lineData = LineData(allEntries)
 
-        // Set the data on the chart
         lineChart.data = lineData
 
-        // Additional customization for the chart
-        lineChart.description.isEnabled = false  // Disable the description
-        lineChart.legend.isEnabled = true  // Enable the legend for user names
-        lineChart.xAxis.setPosition(XAxis.XAxisPosition.BOTTOM)  // Position X axis labels at the bottom
-        lineChart.invalidate() // Refresh the chart to render the data
+        lineChart.description.isEnabled = false
+        lineChart.legend.isEnabled = true
+        lineChart.xAxis.setPosition(XAxis.XAxisPosition.BOTTOM)
+        lineChart.invalidate()
     }
 
+    //Generate a random colour for the lines
     fun randomColor(): Int {
-        // Generate a random RGB color using random values for red, green, and blue
         return Color.rgb(
-            Random.nextInt(256),  // Random red value (0-255)
-            Random.nextInt(256),  // Random green value (0-255)
-            Random.nextInt(256)   // Random blue value (0-255)
+            Random.nextInt(256),  // red
+            Random.nextInt(256),  // green
+            Random.nextInt(256)   // blue
         )
     }
 }

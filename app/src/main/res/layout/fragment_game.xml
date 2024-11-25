@@ -7,18 +7,31 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".Game">
 
-    <!-- Line Chart for the graph-->
+    <!-- Ideally this is created in user_stats.kt with an array of LineChart -->
+    <TextView
+        android:id="@+id/descriptionTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Steps Data for User"
+        android:textSize="16sp"
+        android:textColor="@android:color/black"
+        android:gravity="center"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/lineChart"
         android:layout_width="0dp"
         android:layout_height="250dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/descriptionTextView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:padding="16dp" />
+        android:padding="16dp"/>
 
-    <!-- TableLayout for user data editing -->
+    <!-- Table to view basic user stats -->
     <TableLayout
         android:id="@+id/userDataTable"
         android:layout_width="0dp"
@@ -34,7 +47,6 @@
         android:dividerPadding="4dp"
         tools:ignore="NotSibling">
 
-        <!-- Row for Age -->
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -56,7 +68,6 @@
                 android:inputType="number" />
         </TableRow>
 
-        <!-- Row for Height -->
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -78,7 +89,6 @@
                 android:inputType="number" />
         </TableRow>
 
-        <!-- Row for Weight -->
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -100,7 +110,6 @@
                 android:inputType="numberDecimal" />
         </TableRow>
 
-        <!-- Row for Average Daily Steps -->
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -123,7 +132,6 @@
         </TableRow>
     </TableLayout>
 
-    <!-- Submit Button for Changes -->
     <Button
     android:id="@+id/submitChangesButton"
     android:layout_width="0dp"

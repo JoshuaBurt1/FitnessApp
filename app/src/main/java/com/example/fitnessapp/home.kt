@@ -323,6 +323,7 @@ class Home : Fragment() {
                 val gender = user["gender"] as String
                 val height = user["height"] as Double
                 val weight = user["weight"] as Double
+                val averageDailySteps = user["averageDailySteps"] as Double
 
                 val userData = hashMapOf(
                     "displayName" to fitbitUserName,
@@ -331,6 +332,7 @@ class Home : Fragment() {
                     "gender" to gender,
                     "height" to height,
                     "weight" to weight,
+                    "averageDailySteps" to averageDailySteps,
                     "steps" to dailyStepsJson,
                     "cardioScore" to cardioScoreJson,
                     "calories" to caloriesJson,

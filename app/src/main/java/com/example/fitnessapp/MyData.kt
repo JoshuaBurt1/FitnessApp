@@ -1,6 +1,6 @@
 package com.example.fitnessapp
 
-// Data class to hold all user statistics in a single cluster in MongoDB
+// Data class that may be used again (for previous version)
 data class User(
     val username: String,
     val password: String,

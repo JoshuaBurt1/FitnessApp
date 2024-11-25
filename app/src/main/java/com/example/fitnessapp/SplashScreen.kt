@@ -16,7 +16,6 @@ class SplashScreen : AppCompatActivity() {
 
         // Show the splash screen for 3 seconds, then navigate to MainActivity
         Handler().postDelayed({
-            // Start MainActivity after the splash screen
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }, 3000)
