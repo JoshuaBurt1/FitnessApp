@@ -5,7 +5,7 @@
 1. Download the code
 2. Open in Android Studio
 3. Build and press play (green triangle). Alternatively, download to your phone through USB.
-4. If you have a Fitbit account, you can enter your details. Alternatively you can enter as a new user.
+4. If you have a Fitbit account, you can enter your details. Alternatively, you can enter as a new user.
 5. Once logged in, user the navigation bar on the top left to scroll through login, user stats, and comparison fragment
 
 - A test account login: user: test; password: test
