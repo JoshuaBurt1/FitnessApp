@@ -4,6 +4,7 @@ import android.content.ContentValues.TAG
 import android.content.Context
 import android.graphics.BlurMaskFilter
 import android.os.Bundle
+import android.text.InputType
 import android.text.TextUtils
 import android.util.Base64
 import android.util.Log
@@ -110,18 +111,19 @@ class Home : Fragment() {
         val storedClientSecret = sharedPreferences.getString("client_secret", "")
         val storedRefreshToken = sharedPreferences.getString("refresh_token", "")
 
-        // Check if any value is stored and set blur or hide
+        // Check if any value is stored and set input type as textPassword or plain text
         if (!storedClientId.isNullOrEmpty()) {
-            clientIdEditText.setText(storedClientId)
-            applyBlurEffect(clientIdEditText)
+            clientIdEditText.setText(storedClientId)  // Set stored value
+            // Only apply password behavior when the user interacts with the field
+            setPasswordBehavior(clientIdEditText)
         }
         if (!storedClientSecret.isNullOrEmpty()) {
-            clientSecretEditText.setText(storedClientSecret)
-            applyBlurEffect(clientSecretEditText)
+            clientSecretEditText.setText(storedClientSecret)  // Set stored value
+            setPasswordBehavior(clientSecretEditText)
         }
         if (!storedRefreshToken.isNullOrEmpty()) {
-            refreshTokenEditText.setText(storedRefreshToken)
-            applyBlurEffect(refreshTokenEditText)
+            refreshTokenEditText.setText(storedRefreshToken)  // Set stored value
+            setPasswordBehavior(refreshTokenEditText)
         }
     }
 
@@ -338,22 +340,16 @@ class Home : Fragment() {
         navigationView.menu.findItem(R.id.nav_game)?.isEnabled = true
         navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = true
     }
-    private fun applyBlurEffect(editText: EditText) {
-        // If the EditText has text from SharedPreferences, apply blur initially
-        if (editText.text.isNotEmpty()) {
-            editText.paint.maskFilter = BlurMaskFilter(10f, BlurMaskFilter.Blur.NORMAL)
-        }
+    private fun setPasswordBehavior(editText: EditText) {
+        // Apply password behavior (hide text)
+        editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        editText.setSelection(editText.text.length)  // Move cursor to end of the text
 
-        // Remove the blur effect when the user focuses on or interacts with the field
+        // Optionally, show the password when focused (or if toggled by user action)
         editText.setOnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
-                // Remove the blur effect if the field is focused (i.e., the user is editing)
-                editText.paint.maskFilter = null
-            } else {
-                // Apply blur effect if the field loses focus and still has content
-                if (editText.text.isNotEmpty()) {
-                    editText.paint.maskFilter = BlurMaskFilter(10f, BlurMaskFilter.Blur.NORMAL)
-                }
+                // Allow text to be visible if focused (or leave it as password)
+                editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             }
         }
     }
