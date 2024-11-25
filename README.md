@@ -6,3 +6,4 @@
 4. Once logged in, user the naviation bar on the top left to scroll through login, user stats, and comparison fragment
 
 - Project now uses Firestore
+- A test account: user: test; password: test
