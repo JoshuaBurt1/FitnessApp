@@ -5,11 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    tools:context=".Game">
+    tools:context=".UserStats">
 
-    <!-- Ideally this is created in user_stats.kt with an array of LineChart -->
+    <!-- TextView: Description of the User Stats -->
     <TextView
-        android:id="@+id/descriptionTextView"
+        android:id="@+id/descriptionTextViewUser"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Steps Data for User"
@@ -21,17 +21,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- LineChart -->
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/lineChart"
         android:layout_width="0dp"
         android:layout_height="250dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/descriptionTextView"
+        app:layout_constraintTop_toBottomOf="@id/descriptionTextViewUser"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:padding="16dp"/>
 
-    <!-- Table to view basic user stats -->
     <TableLayout
         android:id="@+id/userDataTable"
         android:layout_width="0dp"
@@ -46,7 +46,35 @@
         android:divider="?android:attr/dividerHorizontal"
         android:dividerPadding="4dp"
         tools:ignore="NotSibling">
+        <TableRow>
+            <TextView
+                android:id="@+id/editStepsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Daily Steps: "
+                android:textSize="16sp"
+                android:paddingEnd="8dp"/>
 
+            <EditText
+                android:id="@+id/editStepsDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="YYYY-MM-DD"
+                android:inputType="text"
+                app:layout_constraintEnd_toStartOf="@id/editStepsNumber"
+                app:layout_constraintStart_toEndOf="@id/editStepsText"
+                app:layout_constraintTop_toTopOf="@id/editStepsText" />
+
+            <EditText
+                android:id="@+id/editStepsNumber"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:hint="Amount"
+                android:inputType="text"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/editStepsDate"
+                app:layout_constraintTop_toTopOf="@id/editStepsText" />
+        </TableRow>
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -56,18 +84,20 @@
                 android:paddingEnd="8dp" />
             <TextView
                 android:id="@+id/ageValueTextView"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="25"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                app:layout_constraintWidth_percent="0.75" />
+
             <EditText
                 android:id="@+id/ageEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:hint="Edit age"
-                android:inputType="number" />
+                android:inputType="number"
+                app:layout_constraintWidth_percent="0.25" />
         </TableRow>
-
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -77,18 +107,20 @@
                 android:paddingEnd="8dp" />
             <TextView
                 android:id="@+id/heightValueTextView"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="170 cm"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                app:layout_constraintWidth_percent="0.75" />
+
             <EditText
                 android:id="@+id/heightEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:hint="Edit height"
-                android:inputType="number" />
+                android:inputType="number"
+                app:layout_constraintWidth_percent="0.25" />
         </TableRow>
-
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
@@ -98,23 +130,24 @@
                 android:paddingEnd="8dp" />
             <TextView
                 android:id="@+id/weightValueTextView"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="70 kg"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                app:layout_constraintWidth_percent="0.75" />
             <EditText
                 android:id="@+id/weightEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:hint="Edit weight"
-                android:inputType="numberDecimal" />
+                android:inputType="numberDecimal"
+                app:layout_constraintWidth_percent="0.25"  />
         </TableRow>
-
         <TableRow>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Average Daily Steps: "
+                android:text="Average Steps: "
                 android:textSize="16sp"
                 android:paddingEnd="8dp" />
             <TextView
@@ -122,24 +155,27 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="10000 steps"
-                android:textSize="16sp" />
+                android:textSize="16sp"
+                app:layout_constraintWidth_percent="0.75" />
             <EditText
                 android:id="@+id/averageDailyStepsEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:hint="Edit steps"
-                android:inputType="number" />
+                android:inputType="number"
+                app:layout_constraintWidth_percent="0.25"  />
         </TableRow>
     </TableLayout>
 
     <Button
-    android:id="@+id/submitChangesButton"
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:text="Submit Changes"
-    android:layout_marginTop="16dp"
-    app:layout_constraintTop_toBottomOf="@id/userDataTable"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintBottom_toBottomOf="parent" />
+        android:id="@+id/submitChangesButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Submit Changes"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/userDataTable"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

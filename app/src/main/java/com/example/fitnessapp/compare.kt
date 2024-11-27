@@ -17,10 +17,21 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import android.graphics.Color
 import android.widget.Toast
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import java.time.LocalDate
 import kotlin.random.Random
 
-// Shows a comparison of all users daily step counts in the firestore cloud
-class Highscores : Fragment() {
+/*
+TO ADD:
+* 1. X-axis for chart
+* 2. Swipe left and right for:
+val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
+val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
+val cardioScore: List<Pair<String, String>>, // List of tuples [dateTime, vo2Max]
+val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
+ */
+
+class Compare : Fragment() {
     private lateinit var lineChart: LineChart
     private lateinit var firestore: FirebaseFirestore
 
@@ -28,103 +39,105 @@ class Highscores : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-
-        val view = inflater.inflate(R.layout.fragment_highscores, container, false)
-
-        //Initialize firestore
+        val view = inflater.inflate(R.layout.fragment_compare, container, false)
+        // Initialize Firestore
         activity?.let { activity ->
             FirebaseApp.initializeApp(activity)
             firestore = FirebaseFirestore.getInstance()
         }
-
         lineChart = view.findViewById(R.id.lineChartAllUsers)
-
         fetchStepsData()
-
         return view
     }
 
-    // Fetch the steps data from firestore, then plot all the users data on the chart
+    // Parses the JSON from Fitbit
+    private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
+        val gson = Gson() //parses JSON
+        val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
+        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>> ?: return emptyList()
+
+        return stepsArray.map { step ->
+            val date = step["dateTime"] as? String ?: "Unknown Date"
+            val steps = (step["value"] as? String)?.toIntOrNull() ?: 0
+            date to steps
+        }
+    }
+    //GET request to firestore database for steps data
     private fun fetchStepsData() {
         if (!UserSession.isUserLoggedIn) {
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
-        // Fetch data from Firestore
+
         firestore.collection("users")
             .get()
             .addOnSuccessListener { querySnapshot ->
-                val allEntries = mutableListOf<LineDataSet>()
+                // Step 1: Collect all entries and dates across users
+                val allData = querySnapshot.documents
+                    .mapNotNull { document ->
+                        val userData = document.data ?: return@mapNotNull null
+                        val stepsJson = userData["steps"] as? String ?: return@mapNotNull null
 
-                for (document in querySnapshot) {
-                    val userData = document.data
-                    Log.d("FirestoreData", "User Data: $userData")
-
-                    val stepsJson = userData["steps"] as? String
-
-                    if (stepsJson != null) {
-                        val stepsList = parseStepsJson(stepsJson)
-
+                        // Parse and sort the steps data
+                        val stepsList = parseStepsJson(stepsJson).sortedBy { LocalDate.parse(it.first) }
                         val userName = userData["displayName"] as? String ?: "Unknown User"
-                        val dataSet = createUserLineDataSet(userName, stepsList)
-                        allEntries.add(dataSet)
-                    } else {
-                        Log.e("FirestoreError", "Steps data is missing or null")
+
+                        userName to stepsList
                     }
+
+                // Step 2: Extract dates and generate datasets
+                val allEntriesAndDates = allData.map { (userName, stepsList) ->
+                    createUserLineDataSet(userName, stepsList)
                 }
-                // Plot the chart
-                plotChart(allEntries)
+
+                // Step 3: Unzip the entries and dates into separate lists
+                val (allEntries, allDatesFormatted) = allEntriesAndDates.unzip()
+
+                plotChart(allEntries, allDatesFormatted)
             }
             .addOnFailureListener { exception ->
                 Log.e("FirestoreError", "Error getting documents: ", exception)
             }
     }
 
-    // Parses the JSON from Fitbit using Gson() into a List<Map<String, Any>> type which can be plotted
-    private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
-        val gson = Gson()
-        val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
-
-        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>>
-
-        if (stepsArray != null) {
-            return stepsArray.map {
-                val date = it["dateTime"] as? String ?: "Unknown Date"
-                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
-                Pair(date, steps)
-            }
-        } else {
-            Log.e("FirestoreError", "Invalid or missing 'activities-tracker-steps' field")
-            return emptyList()
+    // Function to create the dataset for each user
+    private fun createUserLineDataSet(userName: String, stepsList: List<Pair<String, Int>>): Pair<LineDataSet, List<String>> {
+        val entries = stepsList.map { pair ->
+            val date = LocalDate.parse(pair.first)
+            val adjustedX = date.toEpochDay()
+            Entry(adjustedX.toFloat(), pair.second.toFloat())
         }
+        val dates = stepsList.map { it.first }
+
+        // Create LineDataSet and return it with the dates
+        val lineDataSet = LineDataSet(entries, userName).apply {
+            color = randomColor()
+            setCircleColor(color)
+            valueTextColor = Color.BLACK
+            valueTextSize = 12f
+        }
+        return lineDataSet to dates
     }
 
-    //Create the line chart
-    private fun createUserLineDataSet(userName: String, stepsList: List<Pair<String, Int>>): LineDataSet {
-        val entries = stepsList.mapIndexed { index, pair ->
-            Entry(index.toFloat(), pair.second.toFloat())
-        }
-        val dataSet = LineDataSet(entries, userName)
-        dataSet.color = randomColor()
-        dataSet.valueTextColor = Color.BLACK
-        dataSet.valueTextSize = 12f
-        return dataSet
-    }
-
-    //Plot the chart
-    private fun plotChart(allEntries: List<LineDataSet>) {
+    // Plot the chart
+    private fun plotChart(allEntries: List<LineDataSet>, allDates: List<List<String>>) {
         val lineData = LineData(allEntries)
-
         lineChart.data = lineData
 
-        lineChart.description.isEnabled = false
-        lineChart.legend.isEnabled = true
-        lineChart.xAxis.setPosition(XAxis.XAxisPosition.BOTTOM)
+        // Flatten the list of dates and format them for the x-axis
+        val allDateStrings = allDates.flatten()
+        val sortedDateStrings = allDateStrings.distinct().sorted()
+        Log.d("PlotChart", "X-Axis LabelsX: $sortedDateStrings")
+        val xAxis = lineChart.xAxis
+        Log.d("PlotChart", "X-Axis LabelsX: $xAxis")
+        //xAxis.valueFormatter = IndexAxisValueFormatter(sortedDateStrings) // Display dateTime on x-axis
+        xAxis.granularity = 1f
+        xAxis.position = XAxis.XAxisPosition.BOTTOM
         lineChart.invalidate()
     }
 
-    //Generate a random colour for the lines
-    fun randomColor(): Int {
+    // Random colour generation for lines
+    private fun randomColor(): Int {
         return Color.rgb(
             Random.nextInt(256),  // red
             Random.nextInt(256),  // green

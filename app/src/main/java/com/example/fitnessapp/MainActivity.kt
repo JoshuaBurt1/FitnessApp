@@ -51,8 +51,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     override fun onNavigationItemSelected(menuItem: MenuItem): Boolean {
         when (menuItem.itemId) {
             R.id.nav_home -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, Home()).commit()
-            R.id.nav_game -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, Game()).commit()
-            R.id.nav_high_score -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, Highscores()).commit()
+            R.id.nav_userStats -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, UserStats()).commit()
+            R.id.nav_compare -> supportFragmentManager.beginTransaction().replace(R.id.fragment_container, Compare()).commit()
         }
         navigationView.setCheckedItem(menuItem.itemId)
         drawerLayout.closeDrawer(GravityCompat.START)

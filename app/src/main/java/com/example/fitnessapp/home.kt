@@ -72,6 +72,7 @@ class Home : Fragment() {
 
                 query.get()
                     .addOnSuccessListener { querySnapshot ->
+                        disableNavigation()
                         if (querySnapshot.isEmpty) {
                             Log.d("Firestore", "No existing user found with displayName: $userNameRegular. Creating new entry.")
                             UserSession.currentUserName = userNameRegular
@@ -81,12 +82,10 @@ class Home : Fragment() {
                                 .addOnSuccessListener { documentReference ->
                                     Log.d(TAG, "Document added with ID: ${documentReference.id}")
                                     Toast.makeText(requireContext(), "Data posted to Firebase!", Toast.LENGTH_SHORT).show()
-                                    enableNavigation()
                                 }
                                 .addOnFailureListener { e ->
                                     Log.w(TAG, "Error adding document", e)
                                     Toast.makeText(requireContext(), "Error posting data", Toast.LENGTH_SHORT).show()
-                                    enableNavigation()
                                 }
                         } else {
                             // match found, update
@@ -97,6 +96,7 @@ class Home : Fragment() {
                         }
                         UserSession.isUserLoggedIn = true
                         Toast.makeText(requireContext(), "Logged in: $userNameRegular", Toast.LENGTH_SHORT).show()
+                        enableNavigation()
 
                     }
                     .addOnFailureListener { e ->
@@ -386,15 +386,15 @@ class Home : Fragment() {
     private fun disableNavigation() {
         val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
         navigationView.menu.findItem(R.id.nav_home)?.isEnabled = false
-        navigationView.menu.findItem(R.id.nav_game)?.isEnabled = false
-        navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = false
+        navigationView.menu.findItem(R.id.nav_userStats)?.isEnabled = false
+        navigationView.menu.findItem(R.id.nav_compare)?.isEnabled = false
     }
 
     private fun enableNavigation() {
         val navigationView = requireActivity().findViewById<NavigationView>(R.id.nav_view)
         navigationView.menu.findItem(R.id.nav_home)?.isEnabled = true
-        navigationView.menu.findItem(R.id.nav_game)?.isEnabled = true
-        navigationView.menu.findItem(R.id.nav_high_score)?.isEnabled = true
+        navigationView.menu.findItem(R.id.nav_userStats)?.isEnabled = true
+        navigationView.menu.findItem(R.id.nav_compare)?.isEnabled = true
     }
     private fun setPasswordBehavior(editText: EditText) {
         editText.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
