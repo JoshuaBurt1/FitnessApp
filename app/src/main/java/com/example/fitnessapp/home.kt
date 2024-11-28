@@ -176,6 +176,7 @@ class Home : Fragment() {
         }
     }
 
+    //obtaining a refresh token allows a user to go over the limit of a regular 8 hour access token time frame to access API
     private suspend fun refreshAccessToken(refreshToken: String): String? {
         val clientId = getStoredClientId()
         val clientSecret = getStoredClientSecret()
@@ -312,6 +313,8 @@ class Home : Fragment() {
                 val weight = user["weight"] as Double
                 val averageDailySteps = user["averageDailySteps"] as Double
 
+                // Handle parsed data
+                //6 APIs accessed. 1 user split into 7. Other 5 are arrays. Total: 12 rows of data stored per used
                 val userData = hashMapOf(
                     "displayName" to fitbitUserName,
                     "encodedId" to password,

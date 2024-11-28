@@ -7,7 +7,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".UserStats">
 
-    <!-- TextView: Description of the User Stats -->
+    <!-- Description of the User Stats -->
     <TextView
         android:id="@+id/descriptionTextViewUser"
         android:layout_width="wrap_content"
@@ -31,6 +31,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:padding="16dp"/>
+
+    <TextView
+        android:id="@+id/deleteMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Note: Enter -1 in amount to remove a date and associated amount."
+        android:textSize="12sp"
+        android:textStyle="italic"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/lineChart"
+        android:textAlignment="center" />
 
     <TableLayout
         android:id="@+id/userDataTable"

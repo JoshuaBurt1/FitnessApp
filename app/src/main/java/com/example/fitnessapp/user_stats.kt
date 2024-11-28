@@ -1,8 +1,8 @@
 package com.example.fitnessapp
 
+import android.graphics.Color
 import android.icu.text.SimpleDateFormat
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,28 +12,28 @@ import android.widget.TableLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import com.example.fitnessapp.UserSession.currentUserName
 import com.example.fitnessapp.UserSession.isUserLoggedIn
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.buildtools.reloc.com.google.common.reflect.TypeToken
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
+import java.text.ParseException
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.Date
 import java.util.Locale
 
 /*
 TO ADD:
 * 1. Average daily steps should not be editable
-* 2. Graph intervals should be modifiable and/or scrollable to view earlier and later dates
+* 2. Python code recommendation (k-means: cardioScore, calories, heartrate, activeZone, steps -> returns recommendation); Flask *****
 * 3. Swipe left and right for:
 val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
 val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
@@ -42,8 +42,8 @@ val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
  */
 
 class UserStats : Fragment() {
-    private lateinit var firestore: FirebaseFirestore
 
+    private lateinit var firestore: FirebaseFirestore
     private lateinit var lineChart: LineChart
 
     private lateinit var editStepsDate: EditText
@@ -53,20 +53,15 @@ class UserStats : Fragment() {
     private lateinit var weightEditText: EditText
     private lateinit var averageDailyStepsEditText: EditText
     private lateinit var submitChangesButton: Button
+    private lateinit var deleteMessage: TextView
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_user_stats, container, false)
-        // Initialize Firestore
-        activity?.let { activity ->
-            FirebaseApp.initializeApp(activity)
-            firestore = FirebaseFirestore.getInstance()
-        }
+        FirebaseApp.initializeApp(requireActivity())
+        firestore = FirebaseFirestore.getInstance()
 
         lineChart = view.findViewById(R.id.lineChart)
-
         editStepsDate = view.findViewById(R.id.editStepsDate)
         editStepsNumber = view.findViewById(R.id.editStepsNumber)
         ageEditText = view.findViewById(R.id.ageEditText)
@@ -74,152 +69,126 @@ class UserStats : Fragment() {
         weightEditText = view.findViewById(R.id.weightEditText)
         averageDailyStepsEditText = view.findViewById(R.id.averageDailyStepsEditText)
         submitChangesButton = view.findViewById(R.id.submitChangesButton)
+        deleteMessage= view.findViewById(R.id.deleteMessage)
 
-        // Only show button if isUserLoggedIn = true
-        if (isUserLoggedIn) {
-            submitChangesButton.visibility = View.VISIBLE
-        } else {
-            submitChangesButton.visibility = View.GONE
-        }
-        submitChangesButton.setOnClickListener {
-            submitChanges()
-        }
-        fetchStepsData()
+        submitChangesButton.visibility = if (isUserLoggedIn) View.VISIBLE else View.GONE
+        deleteMessage.visibility = if (isUserLoggedIn) View.VISIBLE else View.GONE
+
+        submitChangesButton.setOnClickListener { submitChanges() }
+        fetchUserData()
 
         return view
     }
 
-    //only fetch data if user is logged in
-    private fun fetchStepsData() {
+    //GET request to firestore
+    private fun fetchUserData() {
         val currentUserName = UserSession.currentUserName
-        if (currentUserName.isNullOrEmpty()) {
-            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Fetch data from Firestore
         firestore.collection("users")
             .whereEqualTo("displayName", currentUserName)
             .get()
             .addOnSuccessListener { querySnapshot ->
                 if (querySnapshot.isEmpty) {
-                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
 
-                // *** Get the first document (ideally this is a UNIQUE document) ***
-                val document = querySnapshot.documents.first()
-                val userData = document.data
-                Log.d("FirestoreData", "User Data: $userData")
+                querySnapshot.documents.first().data?.let { userData ->
+                    val (age, height, weight, averageDailySteps) = extractUserData(userData)
+                    populateUserDataTable(age, height, weight, averageDailySteps)
 
-                // Parse user data
-                val age = userData?.get("age") as? Double ?: 0.0
-                val height = userData?.get("height") as? Double ?: 0.0
-                val weight = userData?.get("weight") as? Double ?: 0.0
-                val averageDailySteps = userData?.get("averageDailySteps") as? Double ?: 0.0
-
-                // Populate table
-                populateUserDataTable(age, height, weight, averageDailySteps)
-
-                val stepsJson = userData?.get("steps") as? String
-
-                if (stepsJson != null) {
-                    // Parse the JSON into a list
-                    val stepsList = parseStepsJson(stepsJson)
-                    val userName = userData["displayName"] as? String ?: "Unknown User"
-
-                    // Plot the data
-                    plotChart(stepsList, userName)
-                } else {
-                    Log.e("FirestoreError", "Steps data is missing or null")
+                    val stepsList = userData["steps"]?.toString()?.let { parseStepsJson(it) }
+                    stepsList?.let {
+                        plotChart(it.sortedBy { LocalDate.parse(it.first) }, userData["displayName"] as? String ?: "Unknown User")
+                    }
                 }
             }
-            .addOnFailureListener { exception ->
-                Log.e("FirestoreError", "Error getting document: ", exception)
+            .addOnFailureListener {
                 Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun populateUserDataTable(age: Double, height: Double, weight: Double, averageDailySteps: Double) {
-        // Populate table layout
-        val ageTextView = view?.findViewById<TextView>(R.id.ageValueTextView)
-        val heightTextView = view?.findViewById<TextView>(R.id.heightValueTextView)
-        val weightTextView = view?.findViewById<TextView>(R.id.weightValueTextView)
-        val averageDailyStepsTextView = view?.findViewById<TextView>(R.id.averageDailyStepsValueTextView)
-
-        // Set the user data to the TextViews
-        ageTextView?.text = "${age}"
-        heightTextView?.text = "${height} cm"
-        weightTextView?.text = "${weight} kg"
-        averageDailyStepsTextView?.text = "${averageDailySteps} steps"
-
-        // Show the TableLayout
-        val userDataTable = view?.findViewById<TableLayout>(R.id.userDataTable)
-        userDataTable?.visibility = View.VISIBLE
+    //passes values from firestore to datatable during GET request
+    private fun extractUserData(userData: Map<String, Any>): UserData {
+        val age = (userData["age"] as? Double) ?: 0.0
+        val height = (userData["height"] as? Double) ?: 0.0
+        val weight = (userData["weight"] as? Double) ?: 0.0
+        val averageDailySteps = (userData["averageDailySteps"] as? Double) ?: 0.0
+        return UserData(age, height, weight, averageDailySteps)
     }
 
+    //populates age, weight, height, average steps to datatable during GET request
+    private fun populateUserDataTable(age: Double, height: Double, weight: Double, averageDailySteps: Double) {
+        view?.findViewById<TextView>(R.id.ageValueTextView)?.text = "$age"
+        view?.findViewById<TextView>(R.id.heightValueTextView)?.text = "$height cm"
+        view?.findViewById<TextView>(R.id.weightValueTextView)?.text = "$weight kg"
+        view?.findViewById<TextView>(R.id.averageDailyStepsValueTextView)?.text = "$averageDailySteps steps"
+        view?.findViewById<TableLayout>(R.id.userDataTable)?.visibility = View.VISIBLE
+    }
 
-
+    //parse JSON from firestore request
     private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
         val gson = Gson()
-        val responseMap: Map<String, Any> =
-            gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
-
-        // Extract the 'activities-tracker-steps' array from the map
-        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>>
-
-        // Check if stepsArray is null
-        if (stepsArray != null) {
-            return stepsArray.map {
-                val date = it["dateTime"] as? String ?: "Unknown Date"
-                val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
-                Pair(date, steps)
-            }
-        } else {
-            Log.e("FirestoreError", "Invalid or missing 'activities-tracker-steps' field")
-            return emptyList()
+        val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
+        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>> ?: return emptyList()
+        return stepsArray.map {
+            val date = it["dateTime"] as? String ?: "Unknown Date"
+            val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
+            Pair(date, steps)
         }
     }
 
+    //plots chart initially and whenever an update is made
     private fun plotChart(data: List<Pair<String, Int>>, userName: String) {
-        val descriptionTextView = view?.findViewById<TextView>(R.id.descriptionTextViewUser)
-        descriptionTextView?.text = "Steps Data for $userName"
-
-        // Sort the data based on the date (earliest to latest)
-        val sortedData = data.sortedBy { parseDate(it.first) }
-
-        // Convert the sorted data to Entry objects for plotting
-        val entries = sortedData.mapIndexed { index, pair ->
-            Entry(index.toFloat(), pair.second.toFloat())
+        val entries = data.map { (dateString, steps) ->
+            val date = LocalDate.parse(dateString)
+            Entry(date.toEpochDay().toFloat(), steps.toFloat())
         }
 
-        val dataSet = LineDataSet(entries, userName)
+        val lineDataSet = LineDataSet(entries, userName).apply {
+            color = Color.BLUE
+            setCircleColor(Color.BLUE)
+            setDrawCircles(true)
+            setDrawValues(false)
+        }
 
-        val lineData = LineData(dataSet)
-        lineChart.data = lineData
+        val lineData = LineData(lineDataSet)
+        lineChart.setData(lineData)
+        lineChart.invalidate()  // Refresh chart
+        configureChart()
 
-        dataSet.setColor(android.graphics.Color.BLUE)
-        dataSet.valueTextColor = android.graphics.Color.BLACK
-        dataSet.valueTextSize = 12f
+        //listener for clicks on linechart to obtain coordinates
+        lineChart.setOnChartValueSelectedListener(object : OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: Highlight?) {
+                e?.let {
+                    val dateEpochDay = e.x
+                    val steps = e.y.toInt()
+                    val date = LocalDate.ofEpochDay(dateEpochDay.toLong()).toString()
+                    editStepsDate.setText(date)
+                    editStepsNumber.setText(steps.toString())
+                }
+            }
+            override fun onNothingSelected() {
+                return
+            }
+        })
+    }
 
-        val xAxisLabels = sortedData.map { it.first }
-        Log.d("PlotChart", "X-Axis Labels: $xAxisLabels")
+    //configures the x-axis to be divided equally among earliest and latest date
+    private fun configureChart() {
         val xAxis = lineChart.xAxis
-        xAxis.valueFormatter = IndexAxisValueFormatter(xAxisLabels)
-        xAxis.granularity = 1f
+        xAxis.granularity = 5f
         xAxis.position = XAxis.XAxisPosition.BOTTOM
-        lineChart.invalidate()
+        xAxis.valueFormatter = object : ValueFormatter() {
+            private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            override fun getFormattedValue(value: Float): String {
+                val date = Date(value.toLong() * 24 * 60 * 60 * 1000)
+                return dateFormat.format(date)
+            }
+        }
     }
 
-    // Helper function to parse the date string to a Date object
-    private fun parseDate(dateString: String): Date {
-        val format = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        return format.parse(dateString) ?: Date() // Default to current date if parsing fails
-    }
-
-
+    //on submit button is pressed-> send update requests to firestore
     private fun submitChanges() {
-        // Get the values from the EditTexts
         val stepsDateText = editStepsDate.text.toString().trim()
         val stepsNumberText = editStepsNumber.text.toString().trim()
         val ageText = ageEditText.text.toString().trim()
@@ -227,158 +196,114 @@ class UserStats : Fragment() {
         val weightText = weightEditText.text.toString().trim()
         val averageDailyStepsText = averageDailyStepsEditText.text.toString().trim()
 
-        // Ensure the stepsDateText is in the format YYYY-MM-DD (if it's not empty)
-        if (stepsDateText.isNotEmpty() && !isValidDate(stepsDateText)) {
-            Toast.makeText(requireContext(), "Invalid date format. Please use YYYY-MM-DD", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Ensure stepsNumberText is a valid number (if it's not empty)
-        val steps = if (stepsNumberText.isNotEmpty()) stepsNumberText.toIntOrNull() else null
-        if (steps == null && stepsNumberText.isNotEmpty()) {
-            Toast.makeText(requireContext(), "Please enter a valid number of steps", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Fetch the user's data from Firestore
-        firestore.collection("users")
-            .whereEqualTo("displayName", currentUserName)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (querySnapshot.isEmpty) {
-                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-
-                val document = querySnapshot.documents.first()
-                val userData = document.data
-                val stepsJson = userData?.get("steps") as? String
-                Log.d("FirestoreData", "STEPCOUNT: $stepsJson") // list<pair(string,int)>
-
-                val stepsList = stepsJson?.let { parseStepsJson(it) }?.toMutableList()
-                Log.d("FirestoreData", "STEPCOUNT: $stepsList") // list<pair(string,int)>
-
-                // Only update steps if stepsDateText and stepsNumberText are not empty
-                if (stepsList != null && steps != null && stepsDateText.isNotEmpty()) {
-                    var found = false
-                    for (i in stepsList.indices) {
-                        if (stepsList[i].first == stepsDateText) {
-                            // Update the step count for the matching date
-                            stepsList[i] = Pair(stepsDateText, steps)
-                            found = true
-                            break
-                        }
-                    }
-
-                    // If the date was not found, add a new pair
-                    if (!found) {
-                        stepsList.add(Pair(stepsDateText, steps))
-                    }
-
-                    // Log the updated list
-                    Log.d("UpdatedStepsList", "STEPCOUNT: $stepsList")
-
-                    // Update Firestore with the new steps data
-                    val updatedStepsJson = convertStepsListToJson(stepsList)
-                    document.reference.update("steps", updatedStepsJson)
-                        .addOnSuccessListener {
-                            Toast.makeText(requireContext(), "Steps updated successfully!", Toast.LENGTH_SHORT).show()
-                            plotChart(stepsList, currentUserName)
-                        }
-                        .addOnFailureListener {
-                            Toast.makeText(requireContext(), "Failed to update steps", Toast.LENGTH_SHORT).show()
-                        }
-                }
-
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
-            }
-
-        // Ensure other values are double (if applicable)
-        val age = if (ageText.isNotEmpty()) ageText.toDoubleOrNull() else null
-        val height = if (heightText.isNotEmpty()) heightText.toDoubleOrNull() else null
-        val weight = if (weightText.isNotEmpty()) weightText.toDoubleOrNull() else null
-        val averageDailySteps = if (averageDailyStepsText.isNotEmpty()) averageDailyStepsText.toDoubleOrNull() else null
-
-
+        val (steps, valid) = validateInputs(stepsDateText, stepsNumberText)
+        if (!valid) return
 
         val currentUserName = UserSession.currentUserName
-        if (currentUserName.isNullOrEmpty()) {
-            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
-            return
+
+        val updates = mutableMapOf<String, Any>().apply {
+            ageText.toDoubleOrNull()?.let { put("age", it) }
+            heightText.toDoubleOrNull()?.let { put("height", it) }
+            weightText.toDoubleOrNull()?.let { put("weight", it) }
+            averageDailyStepsText.toDoubleOrNull()?.let { put("averageDailySteps", it) }
         }
 
-        // Prepare user data updates (for profile)
-        val updates = mutableMapOf<String, Any>()
-        // Keep the current values if only some are updated
-        age?.let { updates["age"] = it }
-        height?.let { updates["height"] = it }
-        weight?.let { updates["weight"] = it }
-        averageDailySteps?.let { updates["averageDailySteps"] = it }
+        if (updates.isNotEmpty()) updateUserProfile(currentUserName, updates)
+        if (steps != null) updateStepsData(currentUserName, stepsDateText, steps)
+    }
 
-        // Do not update if no changes
-        if (updates.isEmpty() && (steps == null || stepsDateText.isEmpty())) {
-            Toast.makeText(requireContext(), "No changes to submit", Toast.LENGTH_SHORT).show()
-            return
+    //input validation
+    private fun validateInputs(stepsDateText: String, stepsNumberText: String): Pair<Int?, Boolean> {
+        if (stepsDateText.isNotEmpty() && !isValidDate(stepsDateText)) {
+            Toast.makeText(requireContext(), "Invalid date format. Please use YYYY-MM-DD", Toast.LENGTH_SHORT).show()
+            return null to false
         }
+        if (stepsDateText.isNotEmpty() && isDateInFuture(stepsDateText)) {
+            Toast.makeText(requireContext(), "Date cannot be in the future", Toast.LENGTH_SHORT).show()
+            return null to false
+        }
+        val steps = stepsNumberText.toIntOrNull()
+        if (steps == null && stepsNumberText.isNotEmpty()) {
+            Toast.makeText(requireContext(), "Please enter a valid number of steps", Toast.LENGTH_SHORT).show()
+            return null to false
+        }
+        if (steps != null && steps > 1000000) {
+            Toast.makeText(requireContext(), "Please enter a valid number of steps (less than or equal to 1 million)", Toast.LENGTH_SHORT).show()
+            return null to false
+        }
+        return steps to true
+    }
 
-        // Update the user data in Firestore
+    //height, weight, age, average steps changes
+    private fun updateUserProfile(currentUserName: String, updates: Map<String, Any>) {
         firestore.collection("users")
             .whereEqualTo("displayName", currentUserName)
             .get()
             .addOnSuccessListener { querySnapshot ->
-                if (querySnapshot.isEmpty) {
-                    Toast.makeText(requireContext(), "No user data found", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-
-                // Update user profile data first
-                val document = querySnapshot.documents.first()
-
-                // Update user profile data (age, height, weight, etc.)
-                document.reference.update(updates)
+                val documentRef = querySnapshot.documents.firstOrNull()?.reference ?: return@addOnSuccessListener
+                documentRef.update(updates)
                     .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "User profile updated successfully!", Toast.LENGTH_SHORT).show()
-
-                        // Update the TextViews immediately
-                        age?.let { view?.findViewById<TextView>(R.id.ageValueTextView)?.text = "$it" }
-                        height?.let { view?.findViewById<TextView>(R.id.heightValueTextView)?.text = "$it cm" }
-                        weight?.let { view?.findViewById<TextView>(R.id.weightValueTextView)?.text = "$it kg" }
-                        averageDailySteps?.let { view?.findViewById<TextView>(R.id.averageDailyStepsValueTextView)?.text = "$it steps" }
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(requireContext(), "Failed to update user profile", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), "Profile updated", Toast.LENGTH_SHORT).show()
+                        fetchUserData()
                     }
             }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
-            }
-
     }
 
+    //Steps value changes
+    private fun updateStepsData(currentUserName: String, stepsDateText: String, steps: Int) {
+        firestore.collection("users")
+            .whereEqualTo("displayName", currentUserName)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                val documentRef = querySnapshot.documents.firstOrNull()?.reference ?: return@addOnSuccessListener
+                querySnapshot.documents.first().data?.let { userData ->
+                    val stepsList = parseStepsJson(userData["steps"]?.toString() ?: "")
+                    val updatedStepsList = stepsList.toMutableList().apply {
+                        // DELETE: if date selected and steps = -1
+                        if (stepsDateText.isNotEmpty() && steps == -1) {
+                            removeIf { it.first == stepsDateText }
+                        } else {
+                            // UPDATE ONE
+                            val existingEntry = find { it.first == stepsDateText }
+                            if (existingEntry != null) {
+                                set(indexOf(existingEntry), existingEntry.copy(second = steps))
+                            } else {
+                                // POST
+                                add(Pair(stepsDateText, steps))
+                            }
+                        }
+                    }.sortedBy { LocalDate.parse(it.first) }
 
-    // Is date in format (YYYY-MM-DD)
-    private fun isValidDate(date: String): Boolean {
+                    // Convert updated list to JSON and update Firestore
+                    val updatedStepsJson = convertStepsListToJson(updatedStepsList)
+                    documentRef.update("steps", updatedStepsJson)
+                        .addOnSuccessListener {
+                            Toast.makeText(requireContext(), "Steps updated", Toast.LENGTH_SHORT).show()
+                            plotChart(updatedStepsList, currentUserName)
+                        }
+                }
+            }
+    }
+
+    //Convert to JSON for updating Firebase
+    private fun convertStepsListToJson(stepsList: List<Pair<String, Int>>): String {
+        val gson = Gson()
+        return gson.toJson(mapOf("activities-tracker-steps" to stepsList.map { mapOf("dateTime" to it.first, "value" to it.second.toString()) }))
+    }
+
+    private fun isValidDate(dateString: String): Boolean {
         return try {
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-            LocalDate.parse(date, formatter)
-            true
-        } catch (e: DateTimeParseException) {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateString) != null
+        } catch (e: ParseException) {
             false
         }
     }
 
-    // Create a list of maps with dateTime and value keys
-    private fun convertStepsListToJson(stepsList: MutableList<Pair<String, Int>>): String {
-        val stepsJsonList = stepsList.map {
-            mapOf(
-                "dateTime" to it.first,
-                "value" to it.second.toString()
-            )
-        }
-        val jsonMap = mapOf("activities-tracker-steps" to stepsJsonList)
-        return Gson().toJson(jsonMap)
+    private fun isDateInFuture(dateString: String): Boolean {
+        val currentDate = LocalDate.now()
+        val enteredDate = LocalDate.parse(dateString)
+        return enteredDate.isAfter(currentDate)
     }
-}
 
+    data class UserData(val age: Double, val height: Double, val weight: Double, val averageDailySteps: Double)
+}
