@@ -29,6 +29,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 
+/*
+TO ADD:
+* 1. Allow Apple watch to add data
+* 2. loading data animation
+ */
+
 class Home : Fragment() {
 
     private lateinit var usernameInputEditText: EditText
@@ -45,6 +51,8 @@ class Home : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_home, container, false)
+        //If a user goes home and/or switches an account, set view to 0, otherwise it will be the same going from user_Stats <-> compare
+        UserSession.activeSectionIndex = 0
 
         // Initialize Firebase
         activity?.let { activity ->
@@ -66,17 +74,15 @@ class Home : Fragment() {
                     "encodedId" to passwordRegular
                 )
 
-                // Check if a document with userNameRegular exists *** Ideally using user name and unique password ***
+                // USER LOGIN: Check if a document with userNameRegular exists *** Ideally using user name and unique password ***
                 val db = Firebase.firestore
                 val query = db.collection("users").whereEqualTo("displayName", userNameRegular)
-
                 query.get()
                     .addOnSuccessListener { querySnapshot ->
                         disableNavigation()
+                        // CREATE new user
                         if (querySnapshot.isEmpty) {
-                            Log.d("Firestore", "No existing user found with displayName: $userNameRegular. Creating new entry.")
                             UserSession.currentUserName = userNameRegular
-
                             db.collection("users")
                                 .add(userData)
                                 .addOnSuccessListener { documentReference ->
@@ -88,7 +94,7 @@ class Home : Fragment() {
                                     Toast.makeText(requireContext(), "Error posting data", Toast.LENGTH_SHORT).show()
                                 }
                         } else {
-                            // match found, update
+                            // GET USER
                             val documentId = querySnapshot.documents.first().id
                             Log.d("Firestore", "Existing user found with displayName: $userNameRegular. Updating document ID: $documentId."
                             )
@@ -176,7 +182,6 @@ class Home : Fragment() {
         }
     }
 
-    //obtaining a refresh token allows a user to go over the limit of a regular 8 hour access token time frame to access API
     private suspend fun refreshAccessToken(refreshToken: String): String? {
         val clientId = getStoredClientId()
         val clientSecret = getStoredClientSecret()
@@ -290,7 +295,7 @@ class Home : Fragment() {
                 val cardioScoreJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/cardioscore/date/2024-11-07/2024-11-24.json")
                 val caloriesJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/activities/tracker/calories/date/2024-11-07/today.json")
                 val activeZoneJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/activities/active-zone-minutes/date/2024-11-07/today.json")
-                val heartRateJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/activities/heart/date/2024-11-07/1d/5min.json")
+                val heartRateJson = fetchFitbitApiData("https://api.fitbit.com/1/user/-/activities/heart/date/2024-11-07/today/15min.json")
 
                 // Parse and log the response
                 Log.d("FitbitAPI", "Profile: $profileJson")

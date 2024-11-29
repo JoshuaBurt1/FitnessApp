@@ -4,4 +4,6 @@ package com.example.fitnessapp
 object UserSession {
     var isUserLoggedIn: Boolean = false
     var currentUserName: String = ""
+    // Needed to go to corresponding Compare (User stats heart rate -> compare heart rate); start at 0 at home/login
+    var activeSectionIndex: Int = 0
 }

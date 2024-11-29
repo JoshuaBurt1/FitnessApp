@@ -27,6 +27,8 @@ import kotlin.random.Random
 
 /*
 TO ADD:
+* 0. Load: A. sample (refresh for different sample), B. team, C. friends list, D. search bar for individual:
+clicking on name individual links to user_stats (like duolingo)
 * 1. Swipe left and right for:
 val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
 val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
@@ -36,8 +38,10 @@ val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
 * Highest average
 * Peak
 * Minimum, etc.
+* What can k-means do that regular statistics cant
 3. Add team -> show a specific subset of users to compare to.
-4. Show a sample of all users (refresh for different sample)
+4. sample value amounts should be viewable onclick like in user_stats.kt
+5. hash and cache current data to prevent multiple GETS and long response time? Lag when loading user_stats & compare.
  */
 
 class Compare : Fragment() {
@@ -70,23 +74,20 @@ class Compare : Fragment() {
             }
     }
 
-    // Fetch steps data from Firestore and process using FP
+    // GET: steps data from Firestore and process using FP
     private fun fetchStepsData() {
         if (!UserSession.isUserLoggedIn) {
             Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
             return
         }
-
         firestore.collection("users")
             .get()
             .addOnSuccessListener { querySnapshot ->
                 querySnapshot.documents.forEach { document ->
                     val userData = document.data ?: return@forEach
                     val stepsJson = userData["steps"] as? String ?: return@forEach
-
                     val stepsList = parseStepsJson(stepsJson).sortedBy { LocalDate.parse(it.first) }
                     val userName = userData["displayName"] as? String ?: "Unknown User"
-
                     plotChart(stepsList, userName)
                 }
             }
@@ -105,7 +106,6 @@ class Compare : Fragment() {
             color = randomColor()
             setCircleColor(color)
         }
-
         allLineDataSets.add(lineDataSet)
         val lineData = LineData(allLineDataSets as List<ILineDataSet>)
         configureChart(lineData)

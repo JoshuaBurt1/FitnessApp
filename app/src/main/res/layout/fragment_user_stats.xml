@@ -12,7 +12,7 @@
         android:id="@+id/descriptionTextViewUser"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Steps Data for User"
+        android:text="Stats for User"
         android:textSize="16sp"
         android:textColor="@android:color/black"
         android:gravity="center"
@@ -59,7 +59,8 @@
         android:divider="?android:attr/dividerHorizontal"
         android:dividerPadding="4dp"
         tools:ignore="NotSibling">
-        <TableRow>
+        <TableRow
+            android:id="@+id/stepsRow">
             <TextView
                 android:id="@+id/editStepsText"
                 android:layout_width="wrap_content"
@@ -88,75 +89,8 @@
                 app:layout_constraintStart_toEndOf="@id/editStepsDate"
                 app:layout_constraintTop_toTopOf="@id/editStepsText" />
         </TableRow>
-        <TableRow>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Age: "
-                android:textSize="16sp"
-                android:paddingEnd="8dp" />
-            <TextView
-                android:id="@+id/ageValueTextView"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="25"
-                android:textSize="16sp"
-                app:layout_constraintWidth_percent="0.75" />
-
-            <EditText
-                android:id="@+id/ageEditText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:hint="Edit age"
-                android:inputType="number"
-                app:layout_constraintWidth_percent="0.25" />
-        </TableRow>
-        <TableRow>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Height: "
-                android:textSize="16sp"
-                android:paddingEnd="8dp" />
-            <TextView
-                android:id="@+id/heightValueTextView"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="170 cm"
-                android:textSize="16sp"
-                app:layout_constraintWidth_percent="0.75" />
-
-            <EditText
-                android:id="@+id/heightEditText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:hint="Edit height"
-                android:inputType="number"
-                app:layout_constraintWidth_percent="0.25" />
-        </TableRow>
-        <TableRow>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Weight: "
-                android:textSize="16sp"
-                android:paddingEnd="8dp" />
-            <TextView
-                android:id="@+id/weightValueTextView"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="70 kg"
-                android:textSize="16sp"
-                app:layout_constraintWidth_percent="0.75" />
-            <EditText
-                android:id="@+id/weightEditText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:hint="Edit weight"
-                android:inputType="numberDecimal"
-                app:layout_constraintWidth_percent="0.25"  />
-        </TableRow>
-        <TableRow>
+        <TableRow
+            android:id="@+id/averageStepsRow">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -168,15 +102,110 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="10000 steps"
-                android:textSize="16sp"
-                app:layout_constraintWidth_percent="0.75" />
+                android:textSize="16sp" />
             <EditText
                 android:id="@+id/averageDailyStepsEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:hint="Edit steps"
+                android:inputType="number"  />
+        </TableRow>
+        <TableRow
+            android:id="@+id/heartRateRow">
+            <TextView
+                android:id="@+id/editHRText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Heart rate: "
+                android:textSize="16sp"
+                android:paddingEnd="8dp" />
+
+            <EditText
+                android:id="@+id/editHRDateTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="YYYY-MM-DD"
+                android:inputType="text"
+                app:layout_constraintEnd_toStartOf="@id/editHRDateTime"
+                app:layout_constraintStart_toEndOf="@id/editHRText"
+                app:layout_constraintTop_toTopOf="@id/editHRText" />
+
+            <EditText
+                android:id="@+id/editHRNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="BPM"
+                android:inputType="text"
+                app:layout_constraintStart_toEndOf="@id/editHRDateTime"
+                app:layout_constraintTop_toTopOf="@id/editHRText"/>
+        </TableRow>
+
+        <TableRow
+            android:id="@+id/ageRow">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Age: "
+                android:textSize="16sp"
+                android:paddingEnd="8dp" />
+            <TextView
+                android:id="@+id/ageValueTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="25"
+                android:textSize="16sp"
+                />
+
+            <EditText
+                android:id="@+id/ageEditText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="Edit age"
                 android:inputType="number"
-                app:layout_constraintWidth_percent="0.25"  />
+                />
+        </TableRow>
+        <TableRow
+            android:id="@+id/heightRow">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Height: "
+                android:textSize="16sp"
+                android:paddingEnd="8dp" />
+            <TextView
+                android:id="@+id/heightValueTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="170 cm"
+                android:textSize="16sp" />
+            <EditText
+                android:id="@+id/heightEditText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="Edit height"
+                android:inputType="number" />
+        </TableRow>
+        <TableRow
+            android:id="@+id/weightRow"
+            >
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Weight: "
+                android:textSize="16sp"
+                android:paddingEnd="8dp" />
+            <TextView
+                android:id="@+id/weightValueTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="70 kg"
+                android:textSize="16sp" />
+            <EditText
+                android:id="@+id/weightEditText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:hint="Edit weight"
+                android:inputType="numberDecimal"  />
         </TableRow>
     </TableLayout>
 
@@ -185,10 +214,35 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Submit Changes"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/userDataTable"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0" />
+
+    <!-- Rotate Left Button -->
+    <Button
+        android:id="@+id/rotateLeftButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rotate Left"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/submitChangesButton"
+        app:layout_constraintEnd_toStartOf="@id/rotateRightButton"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <!-- Rotate Right Button -->
+    <Button
+        android:id="@+id/rotateRightButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rotate Right"
+        app:layout_constraintStart_toEndOf="@id/rotateLeftButton"
+        app:layout_constraintTop_toBottomOf="@id/submitChangesButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginStart="8dp"
         app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
