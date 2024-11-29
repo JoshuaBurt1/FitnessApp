@@ -41,7 +41,7 @@ TO ADD:
 * Prevent navigation during gets and posts to prevent crash
 * 0. Loading animation before any data appears
 * 1. Average daily steps should not be editable
-* 2. Python code recommendation (k-means: cardioScore, calories, heartrate, activeZone, steps -> returns recommendation); Flask *****
+* 2. Python code recommendation (k-means: heartrate, steps, sleepscore*** -> returns recommendation); Flask *****
 * 3. Swipe left and right for:
 - basic stats (add: medications, replacements, injury, adverse reactions to treatment + points)
 - strength and endurance: weights and distance times (track and swim)
@@ -49,7 +49,6 @@ TO ADD:
 val restingHR: List<Pair<Int,String>>, //List of tuples [restingHeartRate,dateTime]
 val calories: List<Pair<String, Int>>, // List of tuples [dateTime, calories]
 val cardioScore: List<Pair<String, String>>, // List of tuples [dateTime, vo2Max]
-val heartRate: List<Pair<String, Int>> //List of tuples [dateTime, heartRate]
  */
 
 
@@ -153,7 +152,6 @@ class UserStats : Fragment() {
         UserSession.activeSectionIndex = (currentSectionIndex + direction + statsSections.size) % statsSections.size
         statsSections[UserSession.activeSectionIndex].invoke()
         Log.d("CURRENTSECTION", UserSession.activeSectionIndex.toString())
-
     }
 
     // Show basic stats (age, weight, height)
@@ -164,7 +162,6 @@ class UserStats : Fragment() {
         stepsStatsRows.forEach { it.visibility = View.GONE }
         heartRateStatsRows.forEach { it.visibility = View.GONE }
         lineChart.visibility = View.GONE
-
     }
 
     // Show steps stats (steps, average steps)
@@ -189,90 +186,6 @@ class UserStats : Fragment() {
         heartRateStatsRows.forEach { it.visibility = View.VISIBLE }
         lineChart.visibility = View.VISIBLE
         fetchUserDataHR()
-    }
-
-    //GET request to firestore for fetching user data related to steps
-    private fun fetchUserDataSteps() {
-        val currentUserName = UserSession.currentUserName
-        firestore.collection("users")
-            .whereEqualTo("displayName", currentUserName)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (querySnapshot.isEmpty) {
-                    Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-                querySnapshot.documents.first().data?.let { userData->
-                    //possibly refactor to eliminate this
-                    val (age, height, weight, averageDailySteps) = extractUserData(userData)
-                    populateUserDataTable(age, height, weight, averageDailySteps)
-                    val stepsList = userData["steps"]?.toString()?.let { parseStepsJson(it) }
-                    Log.d(TAG, "STEPSDATA: ${stepsList}")
-                    val dataType = "steps"
-                    stepsList?.let {
-                        plotChart(it.sortedBy { LocalDate.parse(it.first) }, userData["displayName"] as? String ?: "Unknown User", dataType)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Error fetching steps data", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    //GET request to firestore for fetching user data related to heartRate
-    private fun fetchUserDataHR() {
-        val currentUserName = UserSession.currentUserName
-        firestore.collection("users")
-            .whereEqualTo("displayName", currentUserName)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (querySnapshot.isEmpty) {
-                    Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-                querySnapshot.documents.first().data?.let { userData ->
-                    val restingHrList = userData["heartRate"]?.toString()?.let { parseRestingHeartRateJson(it) }
-                    Log.d(TAG, "HRDATA: $restingHrList")
-                    val dataType = "heartRate"
-                    restingHrList?.let {
-                        plotChart(it.sortedBy { LocalDate.parse(it.first) }, userData["displayName"] as? String ?: "Unknown User",dataType)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    //parse steps JSON from firestore request
-    private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
-        val gson = Gson()
-        val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
-        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>> ?: return emptyList()
-        return stepsArray.map {
-            val date = it["dateTime"] as? String ?: "Unknown Date"
-            val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
-            Pair(date, steps)
-        }
-    }
-
-    //parse heart rate JSON from firestore request
-    private fun parseRestingHeartRateJson(restingHeartRateJson: String): List<Pair<String, Int>> {
-        val gson = Gson()
-        val jsonElement = gson.fromJson(restingHeartRateJson, JsonElement::class.java)
-        Log.d(TAG, "jsonElement: $jsonElement")
-        val activitiesHeartArray = jsonElement.asJsonObject.getAsJsonArray("activities-heart")
-        Log.d(TAG, "activitiesHeartArray: $activitiesHeartArray")
-        val resultList = mutableListOf<Pair<String, Int>>()
-        for (activity in activitiesHeartArray) {
-            val dateTime = activity.asJsonObject.get("dateTime").asString
-            val valueObject = activity.asJsonObject.getAsJsonObject("value")
-            val restingHeartRate = valueObject?.get("restingHeartRate")?.asInt
-            restingHeartRate?.let {
-                resultList.add(Pair(dateTime, it))
-            }
-        }
-        return resultList
     }
 
     //GET basic data
@@ -315,8 +228,60 @@ class UserStats : Fragment() {
         view?.findViewById<TableLayout>(R.id.userDataTable)?.visibility = View.VISIBLE
     }
 
+    //on submit button is pressed-> send update requests to firestore
+    private fun submitChanges() {
+        val stepsDateText = editStepsDate.text.toString().trim()
+        val stepsNumberText = editStepsNumber.text.toString().trim()
+        val restingHRDateText = editHRDateTime.text.toString().trim()
+        val restingHRNumberText = editHRNumber.text.toString().trim()
+        val ageText = ageEditText.text.toString().trim()
+        val heightText = heightEditText.text.toString().trim()
+        val weightText = weightEditText.text.toString().trim()
+        val averageDailyStepsText = averageDailyStepsEditText.text.toString().trim()
+
+        val currentUserName = UserSession.currentUserName
+
+        // Collect all changes in a map
+        val updates = mutableMapOf<String, Any>().apply {
+            // Update age, height, weight, and average steps if entered
+            ageText.toDoubleOrNull()?.let { put("age", it) }
+            heightText.toDoubleOrNull()?.let { put("height", it) }
+            weightText.toDoubleOrNull()?.let { put("weight", it) }
+            averageDailyStepsText.toDoubleOrNull()?.let { put("averageDailySteps", it) }
+        }
+
+        // If any basic info is updated, perform the update
+        if (updates.isNotEmpty()) {
+            updateUserProfile(currentUserName, updates)
+        }
+
+        // If section 1 (steps), use this validation and update function
+        if (UserSession.activeSectionIndex == 1) {
+            val (steps, validSteps) = validateInputs(stepsDateText, stepsNumberText)
+            if (stepsDateText.isNotEmpty() && !validSteps) return
+            if (steps != null) {
+                updateStepsData(currentUserName, stepsDateText, steps)
+            }
+        }
+
+        // If section 2 (hr), use this validation and update function
+        if (UserSession.activeSectionIndex == 2) {
+            val (restingHR, validRestingHR) = validateHeartRateInputs(restingHRDateText,restingHRNumberText)
+            if (restingHRDateText.isNotEmpty() && !validRestingHR) return
+            if (restingHR != null) {
+                updateHeartRateData(currentUserName, restingHRDateText, restingHR)
+            }
+        }
+    }
+
     //plots chart initially and whenever an update is made
     private fun plotChart(data: List<Pair<String, Int>>, userName: String, dataType: String) {
+        // If user has no data
+        if (data.isEmpty()) {
+            lineChart.clear()
+            lineChart.invalidate()
+            return
+        }
         val entries = data.map { (dateString, value) ->
             val date = LocalDate.parse(dateString)
             // Use value as y-coordinate (steps or heart rate)
@@ -376,50 +341,57 @@ class UserStats : Fragment() {
         }
     }
 
-    //on submit button is pressed-> send update requests to firestore
-    private fun submitChanges() {
-        val stepsDateText = editStepsDate.text.toString().trim()
-        val stepsNumberText = editStepsNumber.text.toString().trim()
-        val restingHRDateText = editHRDateTime.text.toString().trim()
-        val restingHRNumberText = editHRNumber.text.toString().trim()
-        val ageText = ageEditText.text.toString().trim()
-        val heightText = heightEditText.text.toString().trim()
-        val weightText = weightEditText.text.toString().trim()
-        val averageDailyStepsText = averageDailyStepsEditText.text.toString().trim()
-
+    //GET request to firestore for fetching user data related to steps
+    private fun fetchUserDataSteps() {
         val currentUserName = UserSession.currentUserName
-
-        // Collect all changes in a map
-        val updates = mutableMapOf<String, Any>().apply {
-            // Update age, height, weight, and average steps if entered
-            ageText.toDoubleOrNull()?.let { put("age", it) }
-            heightText.toDoubleOrNull()?.let { put("height", it) }
-            weightText.toDoubleOrNull()?.let { put("weight", it) }
-            averageDailyStepsText.toDoubleOrNull()?.let { put("averageDailySteps", it) }
-        }
-
-        // If any basic info is updated, perform the update
-        if (updates.isNotEmpty()) {
-            updateUserProfile(currentUserName, updates)
-        }
-
-        // If section 1 (steps), use this validation and update function
-        if (UserSession.activeSectionIndex == 1) {
-            val (steps, validSteps) = validateInputs(stepsDateText, stepsNumberText)
-            if (stepsDateText.isNotEmpty() && !validSteps) return
-            if (steps != null) {
-                updateStepsData(currentUserName, stepsDateText, steps)
+        firestore.collection("users")
+            .whereEqualTo("displayName", currentUserName)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (querySnapshot.isEmpty) {
+                    Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+                querySnapshot.documents.first().data?.let { userData->
+                    //possibly refactor to eliminate this
+                    val (age, height, weight, averageDailySteps) = extractUserData(userData)
+                    populateUserDataTable(age, height, weight, averageDailySteps)
+                    val stepsList = userData["steps"]?.toString()?.let { parseStepsJson(it) }
+                    Log.d(TAG, "STEPSDATA: ${stepsList}")
+                    val dataType = "steps"
+                    stepsList?.let {
+                        plotChart(it.sortedBy { LocalDate.parse(it.first) }, userData["displayName"] as? String ?: "Unknown User", dataType)
+                    }
+                }
             }
-        }
-
-        // If section 2 (hr), use this validation and update function
-        if (UserSession.activeSectionIndex == 2) {
-            val (restingHR, validRestingHR) = validateHeartRateInputs(restingHRDateText,restingHRNumberText)
-            if (restingHRDateText.isNotEmpty() && !validRestingHR) return
-            if (restingHR != null) {
-                updateHeartRateData(currentUserName, restingHRDateText, restingHR)
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "Error fetching steps data", Toast.LENGTH_SHORT).show()
             }
-        }
+    }
+
+    //GET request to firestore for fetching user data related to heartRate
+    private fun fetchUserDataHR() {
+        val currentUserName = UserSession.currentUserName
+        firestore.collection("users")
+            .whereEqualTo("displayName", currentUserName)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (querySnapshot.isEmpty) {
+                    Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+                querySnapshot.documents.first().data?.let { userData ->
+                    val restingHrList = userData["heartRate"]?.toString()?.let { parseRestingHeartRateJson(it) }
+                    Log.d(TAG, "HRDATA: $restingHrList")
+                    val dataType = "heartRate"
+                    restingHrList?.let {
+                        plotChart(it.sortedBy { LocalDate.parse(it.first) }, userData["displayName"] as? String ?: "Unknown User",dataType)
+                    }
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
+            }
     }
 
     //input validation
@@ -555,6 +527,37 @@ class UserStats : Fragment() {
             .addOnFailureListener {
                 Toast.makeText(requireContext(), "Error fetching user data", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    //parse steps JSON from firestore request
+    private fun parseStepsJson(stepsJson: String): List<Pair<String, Int>> {
+        val gson = Gson()
+        val responseMap: Map<String, Any> = gson.fromJson(stepsJson, object : TypeToken<Map<String, Any>>() {}.type)
+        val stepsArray = responseMap["activities-tracker-steps"] as? List<Map<String, Any>> ?: return emptyList()
+        return stepsArray.map {
+            val date = it["dateTime"] as? String ?: "Unknown Date"
+            val steps = (it["value"] as? String)?.toIntOrNull() ?: 0
+            Pair(date, steps)
+        }
+    }
+
+    //parse heart rate JSON from firestore request
+    private fun parseRestingHeartRateJson(restingHeartRateJson: String): List<Pair<String, Int>> {
+        val gson = Gson()
+        val jsonElement = gson.fromJson(restingHeartRateJson, JsonElement::class.java)
+        Log.d(TAG, "jsonElement: $jsonElement")
+        val activitiesHeartArray = jsonElement.asJsonObject.getAsJsonArray("activities-heart")
+        Log.d(TAG, "activitiesHeartArray: $activitiesHeartArray")
+        val resultList = mutableListOf<Pair<String, Int>>()
+        for (activity in activitiesHeartArray) {
+            val dateTime = activity.asJsonObject.get("dateTime").asString
+            val valueObject = activity.asJsonObject.getAsJsonObject("value")
+            val restingHeartRate = valueObject?.get("restingHeartRate")?.asInt
+            restingHeartRate?.let {
+                resultList.add(Pair(dateTime, it))
+            }
+        }
+        return resultList
     }
 
     //Convert to JSON for updating Firebase JSON string
